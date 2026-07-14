@@ -34,9 +34,13 @@ The initial design uses four primary agent roles:
 
 The lead agent. It owns the user-facing workflow, keeps track of the overall objective, coordinates handoffs, and decides when to ask the user for clarification.
 
+In the first implementation, the main agent is the session owner and router. It supervises the active planning run, keeps user messages flowing through the main runtime, and forwards the user's next reply back to the planning agent when the planner is waiting on a blocking clarification.
+
 ### Plan Agent
 
 Works with the user to turn a broad research goal into a concrete search plan. The plan should define the target questions, likely sources, collection strategy, quality checks, and expected output format.
+
+The planning agent is interactive rather than one-shot. It should inspect the user's research goal, identify ambiguous constraints, run small Firecrawl-backed `test_search` probes to learn the terminology and source landscape, use `inspect_page` to translate candidate pages into markdown when needed, present readable interim findings for discussion, call `ask_user` when clarification is required, and continue refining until it can call `finalize_plan`.
 
 ### Coding Agent
 
@@ -70,6 +74,17 @@ Main Agent
 ## Status
 
 This repository is in the early design and implementation phase. The README describes the intended direction first so the implementation can stay aligned around a clear architecture.
+
+Implemented so far:
+
+- Python package skeleton under `src/code_as_search`
+- LLM provider configuration for OpenAI, Claude, and Gemini
+- Main agent definition using `openai-agents`
+- Deep Search Planning Agent definition with Firecrawl-backed `test_search`, `inspect_page`, `ask_user`, `present_interim_findings`, and `finalize_plan` tools
+- Runtime state wrapper for routing user replies back to an active planner clarification
+- `.env.example` plus local `.env` variable layout
+
+Search and page translation currently use Firecrawl as the single retrieval backend. `FIRECRAWL_API_KEY` is required for Firecrawl Cloud, and the default endpoint is `https://api.firecrawl.dev`.
 
 ## Goals
 
