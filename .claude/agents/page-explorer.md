@@ -1,6 +1,7 @@
 ---
 name: page-explorer
 description: Reads one web page and answers a specific research question from it. Handles dynamic pages by interacting with them. Returns findings, never raw page content.
+model: sonnet
 tools: mcp__cas_explorer__scrape, mcp__cas_explorer__interact, mcp__cas_explorer__interact_stop
 mcpServers:
   - cas_explorer:

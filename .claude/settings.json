@@ -5,6 +5,9 @@
       "mcp__cas",
       "mcp__cas_explorer",
       "Agent(page-explorer)"
+    ],
+    "deny": [
+      "WebFetch"
     ]
   }
 }
