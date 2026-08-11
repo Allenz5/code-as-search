@@ -27,12 +27,21 @@ Repeat until the stop condition below holds:
 
 1. `memory_read()` — this is your ground truth, not your memory of the conversation.
 2. Take the top open question.
-3. `search(...)` for it. Read the titles and snippets and pick the single most promising URL.
+3. `search(...)` for it. Read the titles and snippets and pick the URLs worth reading.
    Prefer primary sources: filings, papers, docs, official pages. Prefer specific over general.
-4. Delegate that URL to the **page-explorer** subagent. Give it: the URL, the exact question,
-   and a one-line summary of what is already known so it does not hand back what you have.
-   Delegate one page at a time so each choice is informed by the last.
-5. `memory_append` what came back:
+4. Delegate to the **page-explorer** subagent. Give each explorer: the URL, the exact question
+   it is answering, and a one-line summary of what is already known so it does not hand back
+   what you have.
+
+   **Dispatch up to 3 explorers at once, in one message**, whenever the pages are independent —
+   several sources to weigh against each other for one question, or one page each for the top
+   few open questions. This is the common case.
+
+   Go one at a time when the next choice genuinely depends on this one: an index page you
+   expect to yield the URL you actually want, or a question whose wording changes once the one
+   above it is answered. Guessing three URLs when you only understand the first is not
+   parallelism, it is three wasted reads.
+5. `memory_append` what came back, taking the batch as a whole:
    - each real claim as a `finding` against its question, with the source URL
    - any new question the page raised, if it matters to the objective
    - a `note` for a contradiction between sources, or a dead end worth not repeating
@@ -46,6 +55,8 @@ Repeat until the stop condition below holds:
   source in the `answer`.
 - **Follow contradictions.** Two sources disagreeing is the most valuable thing you can find.
   Write a `note`, then open a question to settle it.
+- **Two explorers agreeing is not two sources** when both pages trace to the same origin — the
+  same press release, quoted twice. Look at the URLs before you count a batch as corroboration.
 - **Follow surprises.** A finding that does not fit is a lead, not noise.
 - **Prune.** If a question turns out not to matter to the objective, resolve it with an
   answer saying so. Do not leave it open to be re-searched.
@@ -55,11 +66,13 @@ Repeat until the stop condition below holds:
 
 ## Stop
 
-Stop when nothing is left under **Open**, and the last two pages you read produced no new
-findings and no new questions. Then write `report.md`.
+Stop when nothing is left under **Open**, and the last two batches you dispatched produced no
+new findings and no new questions. Then write `report.md`.
 
 Also stop when the budget runs out — the tools will tell you. Then write the report anyway,
-and say plainly which questions are still open.
+and say plainly which questions are still open. Budget is checked per call, so three explorers
+in flight can carry you a few credits past the ceiling; dispatch one at a time once
+`memory_read()` shows you are close to it.
 
 ## Report
 

@@ -7,6 +7,8 @@ import secrets
 from datetime import datetime, timezone
 from pathlib import Path
 
+from .lock import guard, write_atomic
+
 ROOT = Path(__file__).resolve().parent.parent
 SEARCH = ROOT / "search"
 ACTIVE = SEARCH / ".active"
@@ -64,7 +66,7 @@ def load_meta(run_id: str | None = None) -> dict:
 
 
 def save_meta(run_id: str, meta: dict) -> None:
-    (SEARCH / run_id / "run.json").write_text(json.dumps(meta, indent=2))
+    write_atomic(SEARCH / run_id / "run.json", json.dumps(meta, indent=2))
 
 
 def check_budget(run_id: str | None = None) -> None:
@@ -79,7 +81,8 @@ def check_budget(run_id: str | None = None) -> None:
 
 def spend(credits: int, run_id: str | None = None) -> str:
     run_id = run_id or active()
-    meta = load_meta(run_id)
-    meta["credits"] += int(credits or 0)
-    save_meta(run_id, meta)
+    with guard(run_dir(run_id) / "run.json"):  # parallel explorers charge the same run
+        meta = load_meta(run_id)
+        meta["credits"] += int(credits or 0)
+        save_meta(run_id, meta)
     return f"{meta['credits']}/{meta['budget']} credits"

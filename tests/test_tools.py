@@ -2,6 +2,7 @@
 
 import asyncio
 import sys
+import threading
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -240,6 +241,46 @@ class ToolTest(unittest.TestCase):
         sessions.note_open("ghost", "https://x")
         self.assertEqual(sessions.reap(self.fc, max_age=0.0), ["ghost"])
         self.assertEqual(sessions._load(), {}, "a ghost session must still leave the registry")
+
+    # --- parallel explorers -----------------------------------------------
+
+    def test_startup_reaping_spares_a_live_siblings_session(self):
+        sessions.note_open("sibling", "https://x")  # owned by this, a running process
+        self.assertEqual(sessions.reap_orphans(self.fc), [])
+        self.assertIn("sibling", sessions._load(),
+                      "startup reaping killed a session another explorer is still reading")
+
+    def test_startup_reaping_takes_sessions_whose_owner_is_gone(self):
+        sessions.note_open("orphan", "https://x")
+        registry = sessions._load()
+        registry["orphan"]["pid"] = 4_194_303  # no such process
+        sessions._save(registry)
+        self.assertEqual(sessions.reap_orphans(self.fc), ["orphan"])
+        self.assertEqual(sessions._load(), {})
+
+    def test_concurrent_spending_loses_no_credits(self):
+        self.start_run()
+        self.run_together([lambda: runs.spend(1)] * 12)
+        self.assertEqual(runs.load_meta()["credits"], 12)
+
+    def test_concurrent_scrapes_get_distinct_page_ids(self):
+        self.start_run()
+        ids, guard = [], threading.Lock()
+
+        def save(i):
+            page_id = srv._save_page(f"https://{i}.example", f"body {i}")
+            with guard:
+                ids.append(page_id)
+
+        self.run_together([lambda i=i: save(i) for i in range(8)])
+        self.assertEqual(sorted(ids), sorted(f"p{n}" for n in range(1, 9)))
+
+    def run_together(self, calls):
+        threads = [threading.Thread(target=c) for c in calls]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
 
 
 if __name__ == "__main__":

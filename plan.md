@@ -155,9 +155,10 @@ The main session. The skill body is the loop:
 2. Decompose into 2–5 root questions → memory_append
 3. Repeat:
      memory_read()
-     take the top open question
-     search(...) → pick a URL worth reading
-     delegate that URL to page-explorer
+     take the top open question(s)
+     search(...) → pick the URLs worth reading
+     delegate to page-explorer — up to 3 in parallel when the pages are
+       independent, one at a time when the next choice depends on this one
      append findings / new questions / resolutions
 4. Stop when nothing is left under "Open" and the last 2 turns produced no new findings
    and no new questions; or the budget is exhausted, in which case the report is partial
@@ -188,7 +189,8 @@ mcpServers:
 `mcpServers` is a YAML *list* of entries, not a mapping. As a mapping the server never
 connects, the `tools` allowlist then matches nothing, and the subagent spawns with zero tools.
 
-Invoked in the foreground — the director needs the report before choosing its next action. Its
+Invoked in the foreground, up to three at once — the director needs the batch before choosing
+its next action, but pages that don't inform each other are no reason to read in turn. Each
 prompt carries the URL, the question IDs it is answering, the purpose, and what is already known
 so it doesn't return duplicates. It returns a fixed template:
 
@@ -202,6 +204,20 @@ INTERACTED: yes/no    CREDITS: n    PAGE_ID: p3
 ```
 
 It does not write to memory. One writer keeps the log coherent.
+
+### Parallel explorers
+
+Each explorer subagent gets its own server process, so the state they share is guarded across
+processes, not just across threads: `server/lock.py` wraps every read-modify-write in an
+`flock`, and `run.json` is replaced atomically rather than truncated in place. That covers
+credit accounting, `pages/<pid>.md` id allocation, and the session registry.
+
+A session in the registry records the PID that opened it. Startup reaping takes only the
+sessions whose owner is gone, so a starting explorer cannot close the browser session of a
+sibling that is still reading. The 120s age cap still applies to everyone.
+
+Budget is checked per call, so a batch already in flight can overshoot the ceiling by a few
+credits. The director is told to stop batching as it approaches the limit.
 
 ---
 

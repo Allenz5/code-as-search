@@ -18,6 +18,7 @@ from mcp.server import MCPServer
 
 from . import memory, runs, sessions
 from .firecrawl import Firecrawl, Saturated
+from .lock import guard
 
 _client: Firecrawl | None = None
 
@@ -122,9 +123,10 @@ def register_director(mcp: MCPServer) -> None:
 def _save_page(url: str, markdown: str) -> str:
     pages = runs.run_dir() / "pages"
     pages.mkdir(exist_ok=True)
-    existing = [int(m.group(1)) for p in pages.glob("p*.md") if (m := re.fullmatch(r"p(\d+)", p.stem))]
-    page_id = f"p{max(existing, default=0) + 1}"
-    (pages / f"{page_id}.md").write_text(f"<!-- {url} -->\n\n{markdown}")
+    with guard(pages / "id"):  # two parallel explorers must not claim the same id
+        existing = [int(m.group(1)) for p in pages.glob("p*.md") if (m := re.fullmatch(r"p(\d+)", p.stem))]
+        page_id = f"p{max(existing, default=0) + 1}"
+        (pages / f"{page_id}.md").write_text(f"<!-- {url} -->\n\n{markdown}")
     return page_id
 
 
