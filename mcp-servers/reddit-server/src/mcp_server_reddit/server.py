@@ -40,6 +40,7 @@ class RedditTools(str, Enum):
     GET_SUBREDDIT_RISING_POSTS = "get_subreddit_rising_posts"
     GET_POST_CONTENT = "get_post_content"
     GET_POST_COMMENTS = "get_post_comments"
+    SEARCH_POSTS = "search_posts"
 
 
 class SubredditInfo(BaseModel):
@@ -204,6 +205,14 @@ class RedditServer:
             if comment:
                 comments.append(comment)
         return comments
+
+    def search_posts(self, query: str, subreddit_name: str = '', limit: int = 10,
+                     sort: str = 'relevance', time: str = 'all') -> list[Post]:
+        """Search for posts across Reddit, or within one subreddit if given"""
+        posts = []
+        for subm in self.client.p.submission.search(subreddit_name, query, limit, sort=sort, time=time):
+            posts.append(self._build_post(subm))
+        return posts
 
 
 async def serve() -> None:
@@ -383,6 +392,44 @@ async def serve() -> None:
                     "required": ["post_id"]
                 }
             ),
+            Tool(
+                name=RedditTools.SEARCH_POSTS.value,
+                description="Search for posts across all of Reddit, or within a single subreddit",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "query": {
+                            "type": "string",
+                            "description": "Search query",
+                        },
+                        "subreddit_name": {
+                            "type": "string",
+                            "description": "Limit the search to one subreddit (e.g. 'Python'). Omit to search all of Reddit.",
+                            "default": ""
+                        },
+                        "limit": {
+                            "type": "integer",
+                            "description": "Number of posts to return (default: 10)",
+                            "default": 10,
+                            "minimum": 1,
+                            "maximum": 100
+                        },
+                        "sort": {
+                            "type": "string",
+                            "description": "Sort order for results (default: relevance)",
+                            "default": "relevance",
+                            "enum": ["relevance", "hot", "top", "new", "comments"]
+                        },
+                        "time": {
+                            "type": "string",
+                            "description": "Time filter for results (default: all)",
+                            "default": "all",
+                            "enum": ["all", "hour", "day", "week", "month", "year"]
+                        }
+                    },
+                    "required": ["query"]
+                }
+            ),
         ]
 
     @server.call_tool()
@@ -445,6 +492,16 @@ async def serve() -> None:
                         raise ValueError("Missing required argument: post_id")
                     limit = arguments.get("limit", 10)
                     result = reddit_server.get_post_comments(post_id, limit)
+
+                case RedditTools.SEARCH_POSTS.value:
+                    query = arguments.get("query")
+                    if not query:
+                        raise ValueError("Missing required argument: query")
+                    subreddit_name = arguments.get("subreddit_name", "")
+                    limit = arguments.get("limit", 10)
+                    sort = arguments.get("sort", "relevance")
+                    time = arguments.get("time", "all")
+                    result = reddit_server.search_posts(query, subreddit_name, limit, sort, time)
 
                 case _:
                     raise ValueError(f"Unknown tool: {name}")
