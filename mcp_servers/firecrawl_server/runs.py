@@ -9,7 +9,7 @@ from pathlib import Path
 
 from .lock import guard, write_atomic
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parent.parent.parent
 SEARCH = ROOT / "search"
 ACTIVE = SEARCH / ".active"
 
