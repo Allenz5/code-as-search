@@ -2,7 +2,7 @@
   "mcpServers": {
     "cas": {
       "command": "./.venv/bin/python",
-      "args": ["-m", "server", "--profile", "director"]
+      "args": ["-m", "mcp_servers.firecrawl_server", "--profile", "director"]
     }
   }
 }

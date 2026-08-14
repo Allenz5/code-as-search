@@ -33,7 +33,7 @@ code-as-search/
 ├── .claude/
 │   ├── agents/page-explorer.md     subagent + inline explorer-profile server
 │   └── skills/research/SKILL.md    the director loop → /research <objective>
-├── server/
+├── mcp_servers/firecrawl_server/
 │   ├── __main__.py                 FastMCP, --profile director|explorer
 │   ├── firecrawl.py                HTTP client
 │   ├── sessions.py                 interact session registry + reaper
@@ -182,7 +182,7 @@ mcpServers:
   - cas_explorer:
       type: stdio
       command: ./.venv/bin/python
-      args: ["-m", "server", "--profile", "explorer"]
+      args: ["-m", "mcp_servers.firecrawl_server", "--profile", "explorer"]
 ---
 ```
 
@@ -208,7 +208,7 @@ It does not write to memory. One writer keeps the log coherent.
 ### Parallel explorers
 
 Each explorer subagent gets its own server process, so the state they share is guarded across
-processes, not just across threads: `server/lock.py` wraps every read-modify-write in an
+processes, not just across threads: `mcp_servers/firecrawl_server/lock.py` wraps every read-modify-write in an
 `flock`, and `run.json` is replaced atomically rather than truncated in place. That covers
 credit accounting, `pages/<pid>.md` id allocation, and the session registry.
 

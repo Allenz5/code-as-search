@@ -7,7 +7,7 @@ mcpServers:
   - cas_explorer:
       type: stdio
       command: ./.venv/bin/python
-      args: ["-m", "server", "--profile", "explorer"]
+      args: ["-m", "mcp_servers.firecrawl_server", "--profile", "explorer"]
 ---
 
 You read one page and report what it says about a specific question. You are the only

@@ -40,7 +40,7 @@ interruption and restarts. To pick up an earlier run, point `search/.active` at 
 |---|---|
 | `.claude/skills/research/SKILL.md` | the director loop — the main session runs this |
 | `.claude/agents/page-explorer.md` | subagent that reads one page and reports findings |
-| `server/` | one MCP server, two profiles |
+| `mcp_servers/firecrawl_server/` | one MCP server, two profiles |
 
 The MCP server runs as two profiles so page content cannot reach the director:
 
@@ -62,5 +62,5 @@ jobs will block it; the tool reports that and tells the agent to work from the s
 Check with:
 
 ```bash
-.venv/bin/python -c "from server.firecrawl import Firecrawl; print(Firecrawl()._call('GET','/team/queue-status'))"
+.venv/bin/python -c "from mcp_servers.firecrawl_server.firecrawl import Firecrawl; print(Firecrawl()._call('GET','/team/queue-status'))"
 ```
