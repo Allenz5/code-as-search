@@ -18,7 +18,7 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
-def new_run(objective: str, budget: int = 200) -> str:
+def new_run(objective: str) -> str:
     SEARCH.mkdir(exist_ok=True)
     run_id = f"{datetime.now().strftime('%Y%m%d')}-{secrets.token_hex(2)}"
     (SEARCH / run_id / "pages").mkdir(parents=True)
@@ -28,7 +28,6 @@ def new_run(objective: str, budget: int = 200) -> str:
         {
             "id": run_id,
             "objective": objective,
-            "budget": budget,
             "credits": 0,
             "status": "active",
             "created": _now(),
@@ -69,20 +68,10 @@ def save_meta(run_id: str, meta: dict) -> None:
     write_atomic(SEARCH / run_id / "run.json", json.dumps(meta, indent=2))
 
 
-def check_budget(run_id: str | None = None) -> None:
-    """Raise once the run has spent its credit budget."""
-    meta = load_meta(run_id)
-    if meta["credits"] >= meta["budget"]:
-        raise RuntimeError(
-            f"budget exhausted ({meta['credits']}/{meta['budget']} credits). "
-            "Stop searching and write report.md from what memory already holds."
-        )
-
-
 def spend(credits: int, run_id: str | None = None) -> str:
     run_id = run_id or active()
     with guard(run_dir(run_id) / "run.json"):  # parallel explorers charge the same run
         meta = load_meta(run_id)
         meta["credits"] += int(credits or 0)
         save_meta(run_id, meta)
-    return f"{meta['credits']}/{meta['budget']} credits"
+    return f"{meta['credits']} credits"

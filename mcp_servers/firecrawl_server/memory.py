@@ -154,7 +154,7 @@ def render(meta: dict, records: list[dict], question_id: str | None = None) -> s
             raise ValueError(f"no such question: {question_id!r}")
         return "\n".join(block(questions[question_id]))
 
-    out = [f"# Objective\n{meta['objective']}", f"\n_{meta['credits']}/{meta['budget']} credits used_"]
+    out = [f"# Objective\n{meta['objective']}", f"\n_{meta['credits']} credits used_"]
     for label, want in (("Open", "open"), ("Resolved", "resolved")):
         rows = [q for q in questions.values() if q.get("status", "open") == want]
         out.append(f"\n## {label}")

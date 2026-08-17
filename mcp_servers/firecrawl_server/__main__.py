@@ -35,15 +35,14 @@ def client() -> Firecrawl:
 
 def register_director(mcp: MCPServer) -> None:
     @mcp.tool()
-    def research_start(objective: str, budget: int = 200) -> str:
+    def research_start(objective: str) -> str:
         """Begin a research run. Creates its directory and makes it the active run.
 
         Args:
             objective: What the research is trying to find out.
-            budget: Firecrawl credit ceiling for the whole run.
         """
-        run_id = runs.new_run(objective, budget)
-        return f"run {run_id} started, budget {budget} credits\ndirectory: {runs.run_dir(run_id)}"
+        run_id = runs.new_run(objective)
+        return f"run {run_id} started\ndirectory: {runs.run_dir(run_id)}"
 
     @mcp.tool()
     def search(
@@ -66,7 +65,6 @@ def register_director(mcp: MCPServer) -> None:
             tbs: Recency filter, e.g. 'qdr:w' for the past week.
             country: ISO country code, default US.
         """
-        runs.check_budget()
         data = client().search(
             query,
             limit=limit,
@@ -139,7 +137,6 @@ def register_explorer(mcp: MCPServer) -> None:
             url: The page to fetch.
             wait_for: Milliseconds to wait for JS to settle before reading.
         """
-        runs.check_budget()
         data = client().scrape(url, wait_for=wait_for).get("data", {})
         meta = data.get("metadata", {})
         markdown = data.get("markdown", "")
@@ -175,7 +172,6 @@ def register_explorer(mcp: MCPServer) -> None:
         """
         if not prompt and not code:
             return "error: pass either prompt or code"
-        runs.check_budget()
         try:
             result = client().interact(
                 scrape_id, prompt=prompt, code=code, language=language, timeout=min(timeout, 60)
