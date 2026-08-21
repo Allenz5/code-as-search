@@ -9,7 +9,7 @@ mcpServers:
       command: ${CLAUDE_PLUGIN_ROOT}/.venv/bin/python
       args: ["-m", "mcp_servers.firecrawl_server", "--profile", "explorer"]
       env:
-        PYTHONPATH: ${CLAUDE_PLUGIN_ROOT}
+        PYTHONPATH: ${CLAUDE_PLUGIN_ROOT}/servers
 ---
 
 You read one page and report what it says about a specific question. You are the only

@@ -9,8 +9,37 @@
         "director"
       ],
       "env": {
-        "PYTHONPATH": "${CLAUDE_PLUGIN_ROOT}"
+        "PYTHONPATH": "${CLAUDE_PLUGIN_ROOT}/servers"
       }
+    },
+    "reddit": {
+      "command": "${CLAUDE_PLUGIN_ROOT}/.venv/bin/python",
+      "args": [
+        "-m",
+        "mcp_servers.reddit_server"
+      ],
+      "env": {
+        "PYTHONPATH": "${CLAUDE_PLUGIN_ROOT}/servers"
+      }
+    },
+    "x": {
+      "command": "node",
+      "args": [
+        "${CLAUDE_PLUGIN_ROOT}/servers/x/dist/mcp.js"
+      ]
+    },
+    "linkedin": {
+      "command": "${CLAUDE_PLUGIN_ROOT}/servers/linkedin/.venv/bin/linkedin-mcp-server",
+      "args": [
+        "--transport",
+        "stdio",
+        "--log-level",
+        "ERROR"
+      ]
+    },
+    "xiaohongshu": {
+      "type": "http",
+      "url": "http://localhost:18060/mcp"
     }
   }
 }
