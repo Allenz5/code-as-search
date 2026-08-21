@@ -50,7 +50,8 @@ Every turn: `memory_read()` first, then do as much of 1–3 as there is work for
    actually want, or a question whose wording changes once the one above it is answered.
    That test does not get stricter as the number in flight grows.
 
-   Route by document, not by habit: `page-explorer` for web pages, `pdf-reader` for papers
+   Route by document, not by habit: `claude-toolkit:page-explorer` for web pages,
+   `claude-toolkit:pdf-reader` for papers
    and anything else that has a PDF. A long document overflows the scraper and comes back
    as an error with no content at all, so send `pdf-reader` the `/pdf/` URL rather than
    sending an explorer the `/html/` one.

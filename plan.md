@@ -177,9 +177,9 @@ name: page-explorer
 description: Fetches one URL and answers a specific research question from it.
              Handles dynamic pages via browser interaction. Returns findings, never raw content.
 model: sonnet
-tools: mcp__cas_explorer__scrape, mcp__cas_explorer__interact, mcp__cas_explorer__interact_stop
+tools: mcp__explorer__scrape, mcp__explorer__interact, mcp__explorer__interact_stop
 mcpServers:
-  - cas_explorer:
+  - explorer:
       type: stdio
       command: ./.venv/bin/python
       args: ["-m", "mcp_servers.firecrawl_server", "--profile", "explorer"]

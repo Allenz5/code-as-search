@@ -206,7 +206,7 @@ def register_explorer(mcp: MCPServer) -> None:
 
 
 def build(profile: str) -> MCPServer:
-    mcp = MCPServer(name=f"cas-{profile}")
+    mcp = MCPServer(name=f"research-{profile}")
     if profile == "director":
         register_director(mcp)
     else:

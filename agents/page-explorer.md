@@ -2,12 +2,14 @@
 name: page-explorer
 description: Reads one web page and answers a specific research question from it. Handles dynamic pages by interacting with them. Returns findings, never raw page content.
 model: sonnet
-tools: mcp__cas_explorer__scrape, mcp__cas_explorer__interact, mcp__cas_explorer__interact_stop
+tools: mcp__explorer__scrape, mcp__explorer__interact, mcp__explorer__interact_stop
 mcpServers:
-  - cas_explorer:
+  - explorer:
       type: stdio
-      command: ./.venv/bin/python
+      command: ${CLAUDE_PLUGIN_ROOT}/.venv/bin/python
       args: ["-m", "mcp_servers.firecrawl_server", "--profile", "explorer"]
+      env:
+        PYTHONPATH: ${CLAUDE_PLUGIN_ROOT}
 ---
 
 You read one page and report what it says about a specific question. You are the only

@@ -1,10 +1,9 @@
 {
-  "enableAllProjectMcpServers": true,
   "permissions": {
     "allow": [
-      "mcp__cas",
-      "mcp__cas_explorer",
-      "Agent(page-explorer)"
+      "mcp__plugin_claude-toolkit_research",
+      "mcp__explorer",
+      "Agent(claude-toolkit:page-explorer)"
     ],
     "deny": [
       "WebFetch"

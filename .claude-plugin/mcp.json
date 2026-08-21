@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "research": {
+      "command": "${CLAUDE_PLUGIN_ROOT}/.venv/bin/python",
+      "args": [
+        "-m",
+        "mcp_servers.firecrawl_server",
+        "--profile",
+        "director"
+      ],
+      "env": {
+        "PYTHONPATH": "${CLAUDE_PLUGIN_ROOT}"
+      }
+    }
+  }
+}

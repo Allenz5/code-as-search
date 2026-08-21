@@ -1,0 +1,21 @@
+{
+  "$schema": "https://anthropic.com/claude-code/plugin.schema.json",
+  "name": "claude-toolkit",
+  "version": "0.1.0",
+  "description": "Long-horizon web research: a /research skill driving page-explorer and pdf-reader subagents over a Firecrawl-backed MCP server, with question-driven working memory on disk.",
+  "author": {
+    "name": "Allenz5",
+    "email": "allen1zhang1@gmail.com"
+  },
+  "repository": "https://github.com/Allenz5/code-as-search",
+  "license": "MIT",
+  "keywords": [
+    "research",
+    "search",
+    "firecrawl",
+    "subagents"
+  ],
+  "mcpServers": [
+    "./.claude-plugin/mcp.json"
+  ]
+}

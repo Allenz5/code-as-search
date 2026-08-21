@@ -1,8 +1,0 @@
-{
-  "mcpServers": {
-    "cas": {
-      "command": "./.venv/bin/python",
-      "args": ["-m", "mcp_servers.firecrawl_server", "--profile", "director"]
-    }
-  }
-}
