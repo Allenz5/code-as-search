@@ -366,6 +366,12 @@ func (s *XiaohongshuService) publishVideo(ctx context.Context, content xiaohongs
 }
 
 // ListFeeds 获取Feeds列表
+const (
+	// 首屏一次注水三十几条，刷几轮凑够量。上限防的是刷新一直返回新内容时不收手。
+	feedsMaxRounds = 4
+	feedsTarget    = 100
+)
+
 func (s *XiaohongshuService) ListFeeds(ctx context.Context) (*FeedsListResponse, error) {
 	b := newBrowser()
 	defer b.Close()
@@ -375,18 +381,43 @@ func (s *XiaohongshuService) ListFeeds(ctx context.Context) (*FeedsListResponse,
 
 	action := xiaohongshu.NewFeedsListAction(page)
 
-	feeds, err := action.GetFeedsList(ctx)
-	if err != nil {
-		logrus.Errorf("获取 Feeds 列表失败: %v", err)
-		return nil, err
+	seen := make(map[string]bool)
+	all := make([]xiaohongshu.Feed, 0, feedsTarget)
+
+	for round := 0; round < feedsMaxRounds && len(all) < feedsTarget; round++ {
+		if round > 0 {
+			if err := action.Refresh(ctx); err != nil {
+				logrus.Warnf("刷新首页失败，用已拿到的 %d 条: %v", len(all), err)
+				break
+			}
+		}
+
+		feeds, err := action.GetFeedsList(ctx)
+		if err != nil {
+			// 第一轮就失败才算失败；后面失败就用已经拿到的
+			if round == 0 {
+				logrus.Errorf("获取 Feeds 列表失败: %v", err)
+				return nil, err
+			}
+			logrus.Warnf("第 %d 轮取 Feeds 失败，用已拿到的 %d 条: %v", round+1, len(all), err)
+			break
+		}
+
+		before := len(all)
+		for _, f := range feeds {
+			if !seen[f.ID] {
+				seen[f.ID] = true
+				all = append(all, f)
+			}
+		}
+		// 刷新没换出新内容，再刷也是白刷
+		if len(all) == before {
+			break
+		}
 	}
 
-	response := &FeedsListResponse{
-		Feeds: feeds,
-		Count: len(feeds),
-	}
-
-	return response, nil
+	logrus.Infof("Feeds 列表: %d 条", len(all))
+	return &FeedsListResponse{Feeds: all, Count: len(all)}, nil
 }
 
 func (s *XiaohongshuService) SearchFeeds(ctx context.Context, keyword string, filters ...xiaohongshu.FilterOption) (*FeedsListResponse, error) {

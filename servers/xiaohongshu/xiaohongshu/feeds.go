@@ -23,6 +23,16 @@ func NewFeedsListAction(page *rod.Page) *FeedsListAction {
 	return &FeedsListAction{page: pp}
 }
 
+// Refresh 重新加载首页。推荐流只注水首屏那几十条，但每次刷新给的是不同的一批，
+// 所以拿更多内容靠刷新而不是滚动——写起来简单，也更接近真人翻首页的样子。
+func (f *FeedsListAction) Refresh(ctx context.Context) error {
+	page := f.page.Context(ctx).Timeout(60 * time.Second)
+	if err := page.Navigate("https://www.xiaohongshu.com"); err != nil {
+		return err
+	}
+	return page.WaitDOMStable(300*time.Millisecond, 0)
+}
+
 // GetFeedsList 获取页面的 Feed 列表数据
 func (f *FeedsListAction) GetFeedsList(ctx context.Context) ([]Feed, error) {
 	// 重设超时：.Context(ctx) 会替换掉构造函数里 Timeout(60s) 的 deadline

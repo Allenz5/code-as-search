@@ -38,12 +38,15 @@ level is yours to judge: if the feeds are rich today, more survives.
 uses an anonymous client, so there is no personalised front page. Use the subreddit list in
 `interests.md`.
 
-| | tool |
-|---|---|
-| x | `scrape_timeline(type="following", ...)` |
-| xiaohongshu | `list_feeds()` |
-| linkedin | `get_feed(...)` |
-| reddit | `get_subreddit_hot_posts(subreddit, ...)` per subreddit |
+| | tool | how much it gives you |
+|---|---|---|
+| x | `scrape_timeline(type="following", maxPosts=100)` | 100, or the whole following feed if shorter |
+| reddit | `get_subreddit_hot_posts(subreddit, limit=15)` per subreddit | 15 × however many subs are listed |
+| linkedin | `get_feed(num_posts=50)` | 50 — the tool's schema caps it there |
+| xiaohongshu | `list_feeds()` | whatever the first screen hydrates, around 35. No parameter, no scrolling. |
+
+Ask for the full amount every run. Pulling less to save time is a false economy: the cheap
+level is the one that costs nothing, and anything you never pull cannot be screened.
 
 **Drop what you have already delivered.** Query the database for recent URLs first and
 skip anything already there. This runs three times a day against feeds that turn over
