@@ -272,21 +272,10 @@ func (s *AppServer) handleListFeeds(ctx context.Context) *MCPToolResult {
 		}
 	}
 
-	jsonData, err := json.MarshalIndent(result, "", "  ")
-	if err != nil {
-		return &MCPToolResult{
-			Content: []MCPContent{{
-				Type: "text",
-				Text: fmt.Sprintf("获取Feeds列表成功，但序列化失败: %v", err),
-			}},
-			IsError: true,
-		}
-	}
-
 	return &MCPToolResult{
 		Content: []MCPContent{{
 			Type: "text",
-			Text: string(jsonData),
+			Text: renderFeeds(result.Feeds),
 		}},
 	}
 }

@@ -21,37 +21,62 @@ than wider-and-shallower.
 it was already appended to a file. Runs survive a crash and can be resumed.
 
 **The director never sees raw page content.** Page bodies reach the explorer subagent only.
-This is the rule the whole layout is built to enforce.
+This is the rule the whole layout is built to enforce — and it is enforced by capability, not
+by instruction: the explorer profile is declared inside the subagent that needs it and is
+registered nowhere else, so the director has no tool that returns a page body.
+
+This is also why none of this ships as a plugin. Plugin-shipped agents ignore the `mcpServers`
+frontmatter field for security reasons — `command:` is an arbitrary executable, so a plugin
+could otherwise smuggle in servers that never appear in its manifest. But that field is the
+only mechanism that gives a subagent a server the main conversation lacks. Permissions are no
+substitute: `deny` is inherited by subagents, so denying the director denies the explorer with
+it. Tested, not assumed.
 
 ---
 
 ## 2. Layout
 
 ```
-code-as-search/
-├── .mcp.json                       registers the director profile
-├── .claude/
-│   ├── agents/page-explorer.md     subagent + inline explorer-profile server
-│   └── skills/research/SKILL.md    the director loop → /research <objective>
-├── mcp_servers/firecrawl_server/
+claude-toolkit/
+├── agents/
+│   ├── page-explorer.md.in         subagent + inline explorer-profile server
+│   └── pdf-reader.md               no MCP, so no template needed
+├── skills/research/SKILL.md        the director loop → /research <objective>
+├── servers/mcp_servers/firecrawl_server/
 │   ├── __main__.py                 FastMCP, --profile director|explorer
 │   ├── firecrawl.py                HTTP client
 │   ├── sessions.py                 interact session registry + reaper
 │   ├── memory.py                   event log: append, compact, render
 │   └── runs.py                     run dirs, IDs, .active, budget
+├── scripts/install.sh              renders agents, links them, registers directors
+├── build/agents/                   rendered agents, gitignored
 └── search/<id>/                    gitignored
 ```
 
 Run state lives on disk at `search/.active`, so both server processes agree on the current run
 and `--resume` works.
 
+Nothing is installed by copying. `make install` symlinks agents into `~/.claude/agents/` and
+skills into `~/.claude/skills/`, and registers the director profiles at user scope, so the repo
+stays the source of truth and everything works from any directory.
+
+**Agents are checked in as `.md.in` templates.** A user-level agent may declare its own MCP
+servers — that is what makes the rule above enforceable — but neither `${HOME}` nor `~` expands
+in agent frontmatter, so `command:` has to be an absolute path. The template holds
+`@@TOOLKIT_ROOT@@` and `install.sh` renders it. Re-run it after moving the repo.
+
 ---
 
 ## 3. MCP server
 
-One codebase, stdio transport, two profiles. `.mcp.json` registers only the director profile;
-`page-explorer.md` declares the explorer profile inline via `mcpServers`. The main session
-therefore cannot see a scrape tool.
+One codebase, stdio transport, two profiles. Only the director is registered globally (as
+`websearch`, by `install.sh`); `page-explorer.md.in` declares the explorer profile inline via
+`mcpServers`, and it exists nowhere else. The main session therefore has no scrape tool.
+
+The three social servers are split the same way — `reddit`, `x` and `xiaohongshu` each take a
+`--profile` flag, with `get_post` on the explorer side. Xiaohongshu speaks HTTP rather than
+stdio, so its two profiles are two endpoints on one process (`/mcp` and `/mcp/explorer`) rather
+than two processes, which would fight over one cookie jar and one browser.
 
 ### Director profile
 
@@ -146,7 +171,7 @@ single source unless that source is authoritative, and say which it was in the `
 
 ## 5. Agents
 
-### Director — `.claude/skills/research/SKILL.md`, invoked as `/research <objective>`
+### Director — `skills/research/SKILL.md`, invoked as `/research <objective>`
 
 The main session. The skill body is the loop:
 
@@ -169,25 +194,35 @@ The main session. The skill body is the loop:
 The skill also tells it to re-read `memory_read()` every few actions, which is what makes
 compaction survivable: whatever the summarizer drops, the next read restores.
 
-### Page Explorer — `.claude/agents/page-explorer.md`
+### Page Explorer — `agents/page-explorer.md.in`
 
 ```yaml
 ---
 name: page-explorer
-description: Fetches one URL and answers a specific research question from it.
-             Handles dynamic pages via browser interaction. Returns findings, never raw content.
+description: Reads one web page and answers a specific research question from it.
+             Handles dynamic pages by interacting with them. Returns findings, never raw content.
 model: sonnet
 tools: mcp__explorer__scrape, mcp__explorer__interact, mcp__explorer__interact_stop
 mcpServers:
   - explorer:
       type: stdio
-      command: ./.venv/bin/python
+      command: @@TOOLKIT_ROOT@@/.venv/bin/python
       args: ["-m", "mcp_servers.firecrawl_server", "--profile", "explorer"]
+      env:
+        PYTHONPATH: @@TOOLKIT_ROOT@@/servers
 ---
 ```
 
-`mcpServers` is a YAML *list* of entries, not a mapping. As a mapping the server never
-connects, the `tools` allowlist then matches nothing, and the subagent spawns with zero tools.
+Three things here will each silently produce a subagent with zero tools:
+
+- `mcpServers` must be a YAML *list* of entries, not a mapping. As a mapping the server never
+  connects and the `tools` allowlist matches nothing.
+- The path must be absolute. A relative one follows whatever cwd the agent is spawned with,
+  and `${HOME}` / `~` do not expand here — hence the template.
+- The agent must not be shipped by a plugin, which ignores this field entirely.
+
+The failure mode is the same in all three cases and says nothing about the cause: *"would be
+spawned with zero tools — refusing."*
 
 Invoked in the foreground, up to three at once — the director needs the batch before choosing
 its next action, but pages that don't inform each other are no reason to read in turn. Each
@@ -208,7 +243,7 @@ It does not write to memory. One writer keeps the log coherent.
 ### Parallel explorers
 
 Each explorer subagent gets its own server process, so the state they share is guarded across
-processes, not just across threads: `mcp_servers/firecrawl_server/lock.py` wraps every read-modify-write in an
+processes, not just across threads: `servers/mcp_servers/firecrawl_server/lock.py` wraps every read-modify-write in an
 `flock`, and `run.json` is replaced atomically rather than truncated in place. That covers
 credit accounting, `pages/<pid>.md` id allocation, and the session registry.
 

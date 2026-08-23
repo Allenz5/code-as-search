@@ -6,10 +6,10 @@ tools: mcp__explorer__scrape, mcp__explorer__interact, mcp__explorer__interact_s
 mcpServers:
   - explorer:
       type: stdio
-      command: ${CLAUDE_PLUGIN_ROOT}/.venv/bin/python
+      command: @@TOOLKIT_ROOT@@/.venv/bin/python
       args: ["-m", "mcp_servers.firecrawl_server", "--profile", "explorer"]
       env:
-        PYTHONPATH: ${CLAUDE_PLUGIN_ROOT}/servers
+        PYTHONPATH: @@TOOLKIT_ROOT@@/servers
 ---
 
 You read one page and report what it says about a specific question. You are the only

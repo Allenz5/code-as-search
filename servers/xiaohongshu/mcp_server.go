@@ -129,18 +129,24 @@ type ReplyNotificationArgs struct {
 }
 
 // InitMCPServer 初始化 MCP Server
-func InitMCPServer(appServer *AppServer) *mcp.Server {
+// InitMCPServer 按 profile 建 server。director 负责找笔记，explorer 负责读笔记，
+// 与 firecrawl、reddit、x 三个 server 的切法一致。
+func InitMCPServer(appServer *AppServer, profile string) *mcp.Server {
 	// 创建 MCP Server
 	server := mcp.NewServer(
 		&mcp.Implementation{
-			Name:    "xiaohongshu-mcp",
+			Name:    "xiaohongshu-mcp-" + profile,
 			Version: "2.0.0",
 		},
 		nil,
 	)
 
-	// 注册所有工具
-	registerTools(server, appServer)
+	if profile == "explorer" {
+		registerExplorerTools(server, appServer)
+	} else {
+		registerTools(server, appServer)
+		registerWait(server, appServer)
+	}
 
 	logrus.Info("MCP Server initialized with official SDK")
 
@@ -284,66 +290,6 @@ func registerTools(server *mcp.Server, appServer *AppServer) {
 		},
 		withPanicRecovery("search", func(ctx context.Context, req *mcp.CallToolRequest, args SearchFeedsArgs) (*mcp.CallToolResult, any, error) {
 			result := appServer.handleSearchFeeds(ctx, args)
-			return convertToMCPResult(result), nil, nil
-		}),
-	)
-
-	// 工具: 等限流冷却过去
-	mcp.AddTool(server,
-		&mcp.Tool{
-			Name:        "wait",
-			Description: "等小红书的限流冷却过去。被 search 或 get_post 告知正在冷却时调用，返回后重试即可。冷却较长时会分几次等完，按提示再调一次。",
-			Annotations: &mcp.ToolAnnotations{
-				Title:        "Wait",
-				ReadOnlyHint: true,
-			},
-		},
-		withPanicRecovery("wait", func(ctx context.Context, req *mcp.CallToolRequest, _ any) (*mcp.CallToolResult, any, error) {
-			result := appServer.handleWait(ctx)
-			return convertToMCPResult(result), nil, nil
-		}),
-	)
-
-	// 工具 7: 获取Feed详情
-	mcp.AddTool(server,
-		&mcp.Tool{
-			Name:        "get_post",
-			Description: "读取一篇小红书笔记的正文与评论。默认返回前10条一级评论，如需更多请设置 load_all_comments=true",
-			Annotations: &mcp.ToolAnnotations{
-				Title:        "Get Post",
-				ReadOnlyHint: true,
-			},
-		},
-		withPanicRecovery("get_post", func(ctx context.Context, req *mcp.CallToolRequest, args FeedDetailArgs) (*mcp.CallToolResult, any, error) {
-			argsMap := map[string]interface{}{
-				"url":               args.URL,
-				"load_all_comments": args.LoadAllComments,
-			}
-
-			// 只有当 load_all_comments=true 时，才处理其他参数
-			if args.LoadAllComments {
-				argsMap["click_more_replies"] = args.ClickMoreReplies
-
-				// 设置评论数量限制，默认20
-				limit := args.CommentLimit
-				if limit <= 0 {
-					limit = 20
-				}
-				argsMap["max_comment_items"] = limit
-
-				// 设置回复数量阈值，默认10
-				replyLimit := args.ReplyLimit
-				if replyLimit <= 0 {
-					replyLimit = 10
-				}
-				argsMap["max_replies_threshold"] = replyLimit
-
-				if args.ScrollSpeed != "" {
-					argsMap["scroll_speed"] = args.ScrollSpeed
-				}
-			}
-
-			result := appServer.handleGetFeedDetail(ctx, argsMap)
 			return convertToMCPResult(result), nil, nil
 		}),
 	)
@@ -608,4 +554,77 @@ func convertStringsToInterfaces(strs []string) []interface{} {
 		result[i] = s
 	}
 	return result
+}
+
+// registerWait 注册 wait。两个 profile 都要：任何一侧都可能撞上冷却。
+func registerWait(server *mcp.Server, appServer *AppServer) {
+	// 工具: 等限流冷却过去
+	mcp.AddTool(server,
+		&mcp.Tool{
+			Name:        "wait",
+			Description: "等小红书的限流冷却过去。被 search 或 get_post 告知正在冷却时调用，返回后重试即可。冷却较长时会分几次等完，按提示再调一次。",
+			Annotations: &mcp.ToolAnnotations{
+				Title:        "Wait",
+				ReadOnlyHint: true,
+			},
+		},
+		withPanicRecovery("wait", func(ctx context.Context, req *mcp.CallToolRequest, _ any) (*mcp.CallToolResult, any, error) {
+			result := appServer.handleWait(ctx)
+			return convertToMCPResult(result), nil, nil
+		}),
+	)
+}
+
+// registerGetPost 注册 get_post——正文加评论树，唯一无界的返回，
+// 也是唯一不能进主循环上下文的东西。只有 explorer profile 挂它。
+func registerGetPost(server *mcp.Server, appServer *AppServer) {
+	// 工具 7: 获取Feed详情
+	mcp.AddTool(server,
+		&mcp.Tool{
+			Name:        "get_post",
+			Description: "读取一篇小红书笔记的正文与评论。默认返回前10条一级评论，如需更多请设置 load_all_comments=true",
+			Annotations: &mcp.ToolAnnotations{
+				Title:        "Get Post",
+				ReadOnlyHint: true,
+			},
+		},
+		withPanicRecovery("get_post", func(ctx context.Context, req *mcp.CallToolRequest, args FeedDetailArgs) (*mcp.CallToolResult, any, error) {
+			argsMap := map[string]interface{}{
+				"url":               args.URL,
+				"load_all_comments": args.LoadAllComments,
+			}
+
+			// 只有当 load_all_comments=true 时，才处理其他参数
+			if args.LoadAllComments {
+				argsMap["click_more_replies"] = args.ClickMoreReplies
+
+				// 设置评论数量限制，默认20
+				limit := args.CommentLimit
+				if limit <= 0 {
+					limit = 20
+				}
+				argsMap["max_comment_items"] = limit
+
+				// 设置回复数量阈值，默认10
+				replyLimit := args.ReplyLimit
+				if replyLimit <= 0 {
+					replyLimit = 10
+				}
+				argsMap["max_replies_threshold"] = replyLimit
+
+				if args.ScrollSpeed != "" {
+					argsMap["scroll_speed"] = args.ScrollSpeed
+				}
+			}
+
+			result := appServer.handleGetFeedDetail(ctx, argsMap)
+			return convertToMCPResult(result), nil, nil
+		}),
+	)
+}
+
+// registerExplorerTools 是 explorer profile 的全部家当。
+func registerExplorerTools(server *mcp.Server, appServer *AppServer) {
+	registerWait(server, appServer)
+	registerGetPost(server, appServer)
 }

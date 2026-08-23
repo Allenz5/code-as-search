@@ -28,6 +28,8 @@ import { TweetWithMedia, TwitterComment, TwitterPost } from "./types";
 import { getRateLimitHit, RateLimitError } from "./utils";
 import { Throttle } from "./throttle";
 
+type Profile = "director" | "explorer";
+
 // Import post interaction functions
 import {
   bookmarkPost,
@@ -131,16 +133,31 @@ function postMeta(post: TwitterPost): string {
   return parts.join(" · ");
 }
 
-function renderResults(query: string, posts: TwitterPost[]): string {
-  if (!posts.length) return `no results for "${query}" · x`;
-  const lines = [`${posts.length} results for "${query}" · x`, ""];
+// Shared by search and the timeline. A feed and a search result are the same
+// thing to a reader, so they get the same lines.
+function renderPostList(header: string, posts: TwitterPost[], empty: string): string {
+  if (!posts.length) return empty;
+  const lines = [header, ""];
   posts.forEach((post, i) => {
     lines.push(`${i + 1}. ${excerpt(post.content)}`);
-    lines.push(`   ${postMeta(post)}`);
+    const rt = post.isRetweet ? ` · RT @${post.retweetedFrom?.username ?? "?"}` : "";
+    lines.push(`   ${postMeta(post)}${rt}`);
     lines.push(`   ${post.url}`);
     lines.push("");
   });
   return lines.join("\n").trimEnd();
+}
+
+function renderResults(query: string, posts: TwitterPost[]): string {
+  return renderPostList(
+    `${posts.length} results for "${query}" · x`,
+    posts,
+    `no results for "${query}" · x`
+  );
+}
+
+function renderTimeline(label: string, posts: TwitterPost[]): string {
+  return renderPostList(`${posts.length} posts · ${label}`, posts, `no posts · ${label}`);
 }
 
 function renderPost(post: TwitterPost | undefined, url: string, comments: TwitterComment[]): string {
@@ -262,11 +279,25 @@ export class TwitterMCPServer {
   private authenticatedPage: Page | null = null;
   private browserContextClose: (() => Promise<void>) | null = null;
   private readonly throttle = new Throttle();
+  private readonly profile: Profile;
 
-  constructor() {
+  /**
+   * Two profiles over one server, same split as the firecrawl and reddit servers.
+   * `get_post` returns a post's full text plus its reply tree — unbounded, and the
+   * one thing that must not land in the main loop's context. Everything else
+   * returns bounded lines. `wait` belongs to both: either side can hit a cooldown.
+   */
+  private isToolVisible(name: string): boolean {
+    if (name === "wait") return true;
+    const explorerOnly = name === "get_post";
+    return this.profile === "explorer" ? explorerOnly : !explorerOnly;
+  }
+
+  constructor(profile: Profile = "director") {
+    this.profile = profile;
     this.server = new Server(
       {
-        name: "twitter-playwright-mcp",
+        name: `twitter-playwright-mcp-${profile}`,
         version: "1.0.0",
       },
       {
@@ -311,7 +342,7 @@ export class TwitterMCPServer {
   private setupToolHandlers(): void {
     // List available tools
     this.server.setRequestHandler(ListToolsRequestSchema, async () => ({
-      tools: [
+      tools: ([
         {
           name: "tweet",
           description: "Post a tweet to Twitter/X",
@@ -712,7 +743,7 @@ export class TwitterMCPServer {
             required: ["commentUrl", "newText"],
           },
         } as Tool,
-      ],
+      ] as Tool[]).filter((t) => this.isToolVisible(t.name)),
     }));
 
     // Handle tool execution
@@ -1020,30 +1051,7 @@ export class TwitterMCPServer {
       content: [
         {
           type: "text",
-          text: JSON.stringify(
-            {
-              timeline: result.data.type,
-              count: posts.length,
-              avgEngagement:
-                (posts.reduce((sum, post) => sum + post.engagementRate, 0) / posts.length).toFixed(
-                  2
-                ) + "%",
-              posts: posts.map((post) => ({
-                postId: post.postId,
-                author: post.author.username,
-                content: post.content,
-                url: post.url,
-                timestamp: post.timestamp,
-                likes: post.metrics.likesCount,
-                retweets: post.metrics.retweetsCount,
-                engagement: post.engagementRate.toFixed(2) + "%",
-                isRetweet: post.isRetweet,
-                retweetedFrom: post.retweetedFrom?.username ?? null,
-              })),
-            },
-            null,
-            2
-          ),
+          text: renderTimeline(`x ${result.data.type} timeline`, posts),
         },
       ] as TextContent[],
     };
@@ -1425,7 +1433,10 @@ export class TwitterMCPServer {
 }
 
 if (require.main === module) {
-  const server = new TwitterMCPServer();
+  const profileArg = process.argv.indexOf("--profile");
+  const profile: Profile =
+    profileArg !== -1 && process.argv[profileArg + 1] === "explorer" ? "explorer" : "director";
+  const server = new TwitterMCPServer(profile);
 
   const useSSE = process.env.MCP_TRANSPORT === "sse" || process.env.MCP_TRANSPORT === "http";
   const port = parseInt(process.env.MCP_PORT || "3000");

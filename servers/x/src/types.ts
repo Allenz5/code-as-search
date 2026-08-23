@@ -90,6 +90,7 @@ export interface ScrapeOptions {
   waitBetweenScrolls?: number;
   maxNoNewScrolls?: number;      // stop after this many consecutive scrolls with no new posts (end of feed)
   maxConsecutiveOldPosts?: number; // when maxAgeHours is set, stop only after this many consecutive originals older than the cutoff (the feed isn't strictly chronological)
+  ageStopsScroll?: boolean;      // false = maxAgeHours only filters posts, never ends the scroll (for feeds with no chronological order, e.g. For You)
 }
 
 /**

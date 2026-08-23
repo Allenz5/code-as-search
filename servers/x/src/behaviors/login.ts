@@ -20,6 +20,11 @@ chromium.use(StealthPlugin());
 
 const authDir = process.env.AUTH_DIR || "playwright/.auth";
 const authFile = path.join(authDir, "twitter.json");
+// A real on-disk Chrome profile. A logged-out x.com is defended against exactly
+// the shape `launch()` + `newContext()` produces: a browser with no history, no
+// IndexedDB, no service worker cache — brand new every single time. The login
+// flow is the point where that matters most, so it gets a profile that persists.
+const profileDir = path.join(authDir, "profile");
 
 const MANUAL_LOGIN_TIMEOUT_MS = parseInt(
   process.env.MANUAL_LOGIN_TIMEOUT_MS || "300000",
@@ -55,7 +60,7 @@ function getProxyConfig() {
   };
 }
 
-async function createBrowser(opts: { headless?: boolean } = {}) {
+async function createBrowser(opts: { headless?: boolean; slowMo?: number } = {}) {
   const proxyConfig = getProxyConfig();
   const headless =
     opts.headless ?? process.env.NODE_ENV !== "development";
@@ -63,7 +68,11 @@ async function createBrowser(opts: { headless?: boolean } = {}) {
   const browser = await chromium.launch({
     timeout: 60000,
     headless,
-    slowMo: 1000,
+    // slowMo paces our own actions to look human. During a manual login there
+    // are no actions of ours worth pacing — only the cookie poll — and every
+    // paced CDP round trip is a second the window spends unresponsive under
+    // the user's hands. Callers that hand the window to a person pass 0.
+    slowMo: opts.slowMo ?? 1000,
     args: [
       "--no-sandbox",
       "--disable-setuid-sandbox",
@@ -74,6 +83,32 @@ async function createBrowser(opts: { headless?: boolean } = {}) {
   });
 
   return browser;
+}
+
+async function createPersistentContext(
+  opts: { headless?: boolean; slowMo?: number } = {}
+): Promise<BrowserContext> {
+  const proxyConfig = getProxyConfig();
+  const context = await chromium.launchPersistentContext(profileDir, {
+    timeout: 60000,
+    headless: opts.headless ?? true,
+    slowMo: opts.slowMo ?? 1000,
+    // The real Chrome on this machine, not Playwright's bundled Chromium. x.com
+    // gates the login flow's "Next" button on automation checks, and the bundled
+    // build fails them: --enable-automation is on by default, and the sandbox
+    // flags a headless-CI setup needs are themselves a tell. Override nothing
+    // here — a stock Chrome fingerprint is the whole point.
+    channel: "chrome",
+    ignoreDefaultArgs: ["--enable-automation"],
+    // Follow the real window rather than pinning a viewport inside it.
+    viewport: null,
+    locale: "en-US",
+    ...(proxyConfig && { proxy: proxyConfig }),
+  });
+  await context.addInitScript(
+    "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
+  );
+  return context;
 }
 
 function isOnLoginFlow(page: Page) {
@@ -169,7 +204,7 @@ export async function getAuthenticatedPage() {
     await context.close();
     await browser.close();
 
-    browser = await createBrowser({ headless: false });
+    browser = await createBrowser({ headless: false, slowMo: 0 });
     context = await newContextWithStealth(browser);
 
     page = await context.newPage();
@@ -194,17 +229,15 @@ export async function saveState(page: Page) {
 }
 
 export async function login() {
-  const browser = await createBrowser({ headless: false });
-  const context = await newContextWithStealth(browser);
-  const page = await context.newPage();
+  const context = await createPersistentContext({ headless: false, slowMo: 0 });
+  const page = context.pages()[0] ?? (await context.newPage());
+  attachRateLimitListener(page);
 
   await page.goto("https://x.com/i/flow/login");
 
   await waitForManualLogin(page);
 
-  await page.close();
   await context.close();
-  await browser.close();
 
   console.log("Done!");
 }

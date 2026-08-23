@@ -52,23 +52,50 @@ func day(msSinceEpoch int64) string {
 	return time.UnixMilli(msSinceEpoch).Format("2006-01-02")
 }
 
-func renderSearchResults(query string, feeds []xiaohongshu.Feed) string {
+// renderFeedList 渲染笔记列表。search 和首页推荐共用——推荐流直接吐原始 JSON
+// 会有几万字符，和搜索返回整段正文是同一个问题。
+func renderFeedList(header string, feeds []xiaohongshu.Feed, empty string) string {
 	if len(feeds) == 0 {
-		return fmt.Sprintf("no results for %q · xiaohongshu", query)
+		return empty
 	}
 
 	var b strings.Builder
-	fmt.Fprintf(&b, "%d results for %q · xiaohongshu\n\n", len(feeds), query)
+	fmt.Fprintf(&b, "%s\n\n", header)
 	for i, feed := range feeds {
 		card := feed.NoteCard
 		interact := card.InteractInfo
 		fmt.Fprintf(&b, "%d. %s\n", i+1, card.DisplayTitle)
 		// A search card carries no publish time — only the detail page does.
-		fmt.Fprintf(&b, "   @%s · ♥%s 💬%s ⭐%s\n",
-			card.User.Nickname, interact.LikedCount, interact.CommentCount, interact.CollectedCount)
+		// 推荐流的卡片只带点赞数，评论和收藏是空的——空字段不打，否则看着像坏了。
+		stats := ""
+		for _, kv := range [][2]string{
+			{"♥", interact.LikedCount}, {"💬", interact.CommentCount}, {"⭐", interact.CollectedCount},
+		} {
+			if kv[1] != "" && kv[1] != "0" {
+				stats += " " + kv[0] + kv[1]
+			}
+		}
+		fmt.Fprintf(&b, "   @%s ·%s\n", card.User.Nickname, stats)
 		fmt.Fprintf(&b, "   %s\n\n", noteURL(feed.ID, feed.XsecToken))
 	}
 	return strings.TrimRight(b.String(), "\n")
+}
+
+func renderSearchResults(query string, feeds []xiaohongshu.Feed) string {
+	return renderFeedList(
+		fmt.Sprintf("%d results for %q · xiaohongshu", len(feeds), query),
+		feeds,
+		fmt.Sprintf("no results for %q · xiaohongshu", query),
+	)
+}
+
+// renderFeeds 首页推荐流。
+func renderFeeds(feeds []xiaohongshu.Feed) string {
+	return renderFeedList(
+		fmt.Sprintf("%d posts · xiaohongshu 首页推荐", len(feeds)),
+		feeds,
+		"no posts · xiaohongshu 首页推荐",
+	)
 }
 
 func renderComment(b *strings.Builder, comment xiaohongshu.Comment, depth int) {

@@ -6,17 +6,19 @@ tools: mcp__reddit__get_post, mcp__x__get_post, mcp__xiaohongshu__get_post, mcp_
 mcpServers:
   - reddit:
       type: stdio
-      command: ${CLAUDE_PLUGIN_ROOT}/.venv/bin/python
-      args: ["-m", "mcp_servers.reddit_server"]
+      command: @@TOOLKIT_ROOT@@/.venv/bin/python
+      args: ["-m", "mcp_servers.reddit_server", "--profile", "explorer"]
       env:
-        PYTHONPATH: ${CLAUDE_PLUGIN_ROOT}/servers
+        PYTHONPATH: @@TOOLKIT_ROOT@@/servers
   - x:
       type: stdio
       command: node
-      args: ["${CLAUDE_PLUGIN_ROOT}/servers/x/dist/mcp.js"]
+      args: ["@@TOOLKIT_ROOT@@/servers/x/dist/mcp.js", "--profile", "explorer"]
+      env:
+        AUTH_DIR: @@TOOLKIT_ROOT@@/servers/x/.auth
   - xiaohongshu:
       type: http
-      url: http://localhost:18060/mcp
+      url: http://localhost:18060/mcp/explorer
 ---
 
 You read one social post and report what it says about a specific question. You are the

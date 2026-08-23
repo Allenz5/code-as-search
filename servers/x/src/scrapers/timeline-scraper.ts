@@ -26,8 +26,14 @@ export async function scrapeTimeline(
   
   console.log(`Scraping ${timelineType} timeline...`);
   
-  // Scrape posts
-  const posts = await scrapePosts(page, options);
+  // Scrape posts. Age can only bound the scroll on a feed that is actually in
+  // time order. "Following" roughly is; "For you" is not — X seeds it with older
+  // popular posts, so a run of them is normal mid-feed and must not be read as
+  // "we have scrolled past the window". There, age filters and nothing more.
+  const posts = await scrapePosts(page, {
+    ...options,
+    ageStopsScroll: timelineType === 'following',
+  });
   
   console.log(`Scraped ${posts.length} posts from ${timelineType} timeline`);
   

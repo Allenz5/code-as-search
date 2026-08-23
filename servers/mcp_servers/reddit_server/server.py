@@ -226,10 +226,12 @@ def _post_id(url: str) -> str:
     return m.group(1) if m else url.strip().strip("/").split("/")[-1]
 
 
-def _render_results(query: str, posts: list[Post]) -> str:
+def _render_posts(header: str, posts: list[Post], empty: str) -> str:
+    """Shared rendering for anything that returns a list of posts. Feeds go through
+    here too, not just search: a feed that returns whole bodies is just as unbounded."""
     if not posts:
-        return f'no results for "{query}" · reddit'
-    lines = [f'{len(posts)} results for "{query}" · reddit\n']
+        return empty
+    lines = [f"{header}\n"]
     for i, post in enumerate(posts, 1):
         lines.append(f"{i}. {post.title}")
         lines.append(
@@ -241,6 +243,18 @@ def _render_results(query: str, posts: list[Post]) -> str:
             lines.append(f"   {ex}")
         lines.append("")
     return "\n".join(lines).rstrip()
+
+
+def _render_results(query: str, posts: list[Post]) -> str:
+    return _render_posts(
+        f'{len(posts)} results for "{query}" · reddit',
+        posts,
+        f'no results for "{query}" · reddit',
+    )
+
+
+def _render_feed(label: str, posts: list[Post]) -> str:
+    return _render_posts(f"{len(posts)} posts · {label}", posts, f"no posts · {label}")
 
 
 def _render_comment(comment: Comment, depth: int = 0) -> list[str]:
@@ -274,10 +288,9 @@ def _dump(result) -> str:
     return json.dumps(result, default=lambda x: x.model_dump(), indent=2)
 
 
-def build() -> MCPServer:
-    mcp = MCPServer(name="reddit")
-    reddit = RedditServer()
-
+def _register_browse(mcp: MCPServer, reddit: RedditServer) -> None:
+    """Director profile: find posts, never read them. Everything here returns a
+    bounded line per post — title, author, engagement, URL, capped excerpt."""
     @mcp.tool()
     def get_frontpage_posts(limit: int = 10) -> str:
         """Get hot posts from Reddit frontpage.
@@ -285,7 +298,7 @@ def build() -> MCPServer:
         Args:
             limit: Number of posts to return (default 10, max 100).
         """
-        return _dump(reddit.get_frontpage_posts(limit))
+        return _render_feed("reddit frontpage (r/all, anonymous — not your subscriptions)", reddit.get_frontpage_posts(limit))
 
     @mcp.tool()
     def get_subreddit_info(subreddit_name: str) -> str:
@@ -304,7 +317,7 @@ def build() -> MCPServer:
             subreddit_name: Name of the subreddit (e.g. 'Python', 'news').
             limit: Number of posts to return (default 10, max 100).
         """
-        return _dump(reddit.get_subreddit_hot_posts(subreddit_name, limit))
+        return _render_feed(f"r/{subreddit_name} · hot", reddit.get_subreddit_hot_posts(subreddit_name, limit))
 
     @mcp.tool()
     def get_subreddit_new_posts(subreddit_name: str, limit: int = 10) -> str:
@@ -314,7 +327,7 @@ def build() -> MCPServer:
             subreddit_name: Name of the subreddit (e.g. 'Python', 'news').
             limit: Number of posts to return (default 10, max 100).
         """
-        return _dump(reddit.get_subreddit_new_posts(subreddit_name, limit))
+        return _render_feed(f"r/{subreddit_name} · new", reddit.get_subreddit_new_posts(subreddit_name, limit))
 
     @mcp.tool()
     def get_subreddit_top_posts(subreddit_name: str, limit: int = 10, time: str = "") -> str:
@@ -325,7 +338,7 @@ def build() -> MCPServer:
             limit: Number of posts to return (default 10, max 100).
             time: Time filter — '', 'hour', 'day', 'week', 'month', 'year' or 'all'.
         """
-        return _dump(reddit.get_subreddit_top_posts(subreddit_name, limit, time))
+        return _render_feed(f"r/{subreddit_name} · top", reddit.get_subreddit_top_posts(subreddit_name, limit, time))
 
     @mcp.tool()
     def get_subreddit_rising_posts(subreddit_name: str, limit: int = 10) -> str:
@@ -335,28 +348,7 @@ def build() -> MCPServer:
             subreddit_name: Name of the subreddit (e.g. 'Python', 'news').
             limit: Number of posts to return (default 10, max 100).
         """
-        return _dump(reddit.get_subreddit_rising_posts(subreddit_name, limit))
-
-    @mcp.tool()
-    def get_post(url: str, comment_limit: int = 10, comment_depth: int = 3) -> str:
-        """Read one post in full: body and comment tree.
-
-        Args:
-            url: The post's URL, as returned by `search`.
-            comment_limit: Number of top-level comments to return (default 10, max 100).
-            comment_depth: Maximum depth of the comment tree (default 3, max 10).
-        """
-        return _render_post(reddit.get_post_content(_post_id(url), comment_limit, comment_depth))
-
-    @mcp.tool()
-    def get_post_comments(post_id: str, limit: int = 10) -> str:
-        """Get comments from a post.
-
-        Args:
-            post_id: ID of the post.
-            limit: Number of comments to return (default 10, max 100).
-        """
-        return _dump(reddit.get_post_comments(post_id, limit))
+        return _render_feed(f"r/{subreddit_name} · rising", reddit.get_subreddit_rising_posts(subreddit_name, limit))
 
     @mcp.tool()
     def search(
@@ -380,4 +372,38 @@ def build() -> MCPServer:
         """
         return _render_results(query, reddit.search_posts(query, subreddit, limit, sort, time))
 
+
+def _register_read(mcp: MCPServer, reddit: RedditServer) -> None:
+    """Explorer profile: the post body and its comment tree, both unbounded.
+    This is the half that must not reach the main loop, so it is registered
+    only when the server is started with --profile explorer."""
+    @mcp.tool()
+    def get_post(url: str, comment_limit: int = 10, comment_depth: int = 3) -> str:
+        """Read one post in full: body and comment tree.
+
+        Args:
+            url: The post's URL, as returned by `search`.
+            comment_limit: Number of top-level comments to return (default 10, max 100).
+            comment_depth: Maximum depth of the comment tree (default 3, max 10).
+        """
+        return _render_post(reddit.get_post_content(_post_id(url), comment_limit, comment_depth))
+
+    @mcp.tool()
+    def get_post_comments(post_id: str, limit: int = 10) -> str:
+        """Get comments from a post.
+
+        Args:
+            post_id: ID of the post.
+            limit: Number of comments to return (default 10, max 100).
+        """
+        return _dump(reddit.get_post_comments(post_id, limit))
+
+
+def build(profile: str = "director") -> MCPServer:
+    mcp = MCPServer(name=f"reddit-{profile}")
+    reddit = RedditServer()
+    if profile == "director":
+        _register_browse(mcp, reddit)
+    else:
+        _register_read(mcp, reddit)
     return mcp

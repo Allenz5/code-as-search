@@ -18,10 +18,15 @@ export async function scrapePosts(
   options: ScrapeOptions = {}
 ): Promise<TwitterPost[]> {
   const {
-    // Optional hard cap on post count. When maxAgeHours is set, scraping is
-    // bounded by time instead, so maxPosts defaults to unlimited.
+    // Optional hard cap on post count. When time bounds the scroll, maxPosts
+    // defaults to unlimited; when time is only a filter (see ageStopsScroll)
+    // it cannot bound anything, so the count cap has to.
     maxAgeHours,
-    maxPosts = maxAgeHours != null ? Infinity : 10,
+    // Whether an old post means "we have scrolled past the window" (true) or
+    // just "skip this one" (false). Only a genuinely reverse-chronological
+    // feed can use age as a boundary — see the caller in timeline-scraper.
+    ageStopsScroll = true,
+    maxPosts = maxAgeHours != null && ageStopsScroll ? Infinity : 10,
     // Absolute safety backstop so we can never scroll truly forever (e.g. if
     // the feed keeps lazy-loading). Primary stops are the time cutoff and
     // end-of-feed detection below.
@@ -80,6 +85,9 @@ export async function scrapePosts(
         // means we've truly scrolled past the time window.
         if (cutoffMs !== null && !post.isRetweet && post.timestamp.getTime() < cutoffMs) {
           seenPostIds.add(post.postId); // mark seen so it isn't re-counted
+          // Filter-only mode: drop it and keep scrolling. Never let age end the
+          // scroll, because in this feed age carries no ordering information.
+          if (!ageStopsScroll) continue;
           consecutiveOld++;
           if (consecutiveOld >= maxConsecutiveOldPosts) {
             reachedCutoff = true;

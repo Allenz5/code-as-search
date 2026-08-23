@@ -4,6 +4,14 @@ __pycache__/
 *.py[cod]
 search/
 
+# rendered agent files — see scripts/install.sh
+build/
+
+# browser login state — never commit
+.auth/
+playwright/
+cookies.json
+
 # servers/
 node_modules/
 dist/

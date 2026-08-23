@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Install:  cp scripts/com.allenzhang.digest.plist ~/Library/LaunchAgents/
+            launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.allenzhang.digest.plist
+  Fire now: launchctl kickstart -k gui/$(id -u)/com.allenzhang.digest
+  Remove:   launchctl bootout gui/$(id -u)/com.allenzhang.digest
+
+  USER and LOGNAME are not decoration. launchd starts jobs with a stripped
+  environment, and without them Claude Code cannot read its Keychain credentials
+  and comes up "Not logged in".
+
+  Missed runs are not lost: unlike cron, launchd fires a StartCalendarInterval
+  job on the next wake, coalescing multiple missed intervals into one.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.allenzhang.digest</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/allenzhang/Desktop/workspace/claude-toolkit/scripts/run-digest.sh</string>
+    </array>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>USER</key>
+        <string>allenzhang</string>
+        <key>LOGNAME</key>
+        <string>allenzhang</string>
+        <key>HOME</key>
+        <string>/Users/allenzhang</string>
+        <key>PATH</key>
+        <string>/Users/allenzhang/.local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    </dict>
+
+    <!-- Off the hour on purpose: a request stream that lands exactly at :00 is
+         the easiest kind of machine rhythm for a platform to notice. -->
+    <key>StartCalendarInterval</key>
+    <array>
+        <dict>
+            <key>Hour</key><integer>8</integer>
+            <key>Minute</key><integer>7</integer>
+        </dict>
+        <dict>
+            <key>Hour</key><integer>12</integer>
+            <key>Minute</key><integer>23</integer>
+        </dict>
+        <dict>
+            <key>Hour</key><integer>19</integer>
+            <key>Minute</key><integer>11</integer>
+        </dict>
+    </array>
+
+    <key>StandardOutPath</key>
+    <string>/Users/allenzhang/.local/state/digest/digest.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/allenzhang/.local/state/digest/digest.err</string>
+
+    <key>RunAtLoad</key>
+    <false/>
+    <key>ProcessType</key>
+    <string>Background</string>
+</dict>
+</plist>

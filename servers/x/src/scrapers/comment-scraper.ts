@@ -34,16 +34,40 @@ export async function scrapeComments(
   const comments: TwitterComment[] = [];
   const seenCommentIds = new Set<string>();
   const startTime = Date.now();
+  // Once the "Discover more" tweets below the replies stop counting, a post with
+  // few replies has nothing left to add and would otherwise scroll until the
+  // timeout. Give up after a few barren rounds.
+  let noNewScrolls = 0;
   
   // Wait for replies section to load
   await page.waitForSelector('section[role="region"]', { timeout: 10000 }).catch(() => {});
   
   while (comments.length < maxComments && (Date.now() - startTime) < scrollTimeout) {
+    const countBefore = comments.length;
+
     // Get all reply articles
     const replyElements = await page.$$('article[data-testid="tweet"]');
-    
+
+    // Below the replies X appends a "Discover more" block of unrelated popular
+    // tweets, using the same article[data-testid="tweet"] selector. Scraping the
+    // whole page swallows them as replies — which is how a post about one paper
+    // ends up with comments about someone else's training run. Find that divider
+    // in document order and treat everything after it as not-a-reply.
+    const replyCutoff = await page.evaluate(() => {
+      const arts = Array.from(document.querySelectorAll('article[data-testid="tweet"]'));
+      const marker = Array.from(document.querySelectorAll('h2, div[role="heading"]')).find((e) =>
+        /^(discover more|more tweets)/i.test((e.textContent || '').trim())
+      );
+      if (!marker) return arts.length;
+      const idx = arts.findIndex(
+        (a) => (marker.compareDocumentPosition(a) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0
+      );
+      return idx === -1 ? arts.length : idx;
+    });
+
     // Skip the first one as it's usually the main tweet
-    for (let i = 1; i < replyElements.length; i++) {
+    const lastReply = Math.min(replyElements.length, replyCutoff);
+    for (let i = 1; i < lastReply; i++) {
       if (comments.length >= maxComments) break;
       
       const element = replyElements[i];
@@ -65,6 +89,15 @@ export async function scrapeComments(
       }
     }
     
+    if (comments.length === countBefore) {
+      if (++noNewScrolls >= 3) {
+        console.log(`No new comments after ${noNewScrolls} scrolls; stopping at ${comments.length}`);
+        break;
+      }
+    } else {
+      noNewScrolls = 0;
+    }
+
     // Scroll to load more comments
     if (comments.length < maxComments) {
       await scrollAndWait(page, waitBetweenScrolls);

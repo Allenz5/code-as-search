@@ -2,6 +2,7 @@ package main
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -24,8 +25,12 @@ func setupRoutes(appServer *AppServer) *gin.Engine {
 	router.GET("/health", healthHandler)
 
 	// MCP 端点 - 使用官方 SDK 的 Streamable HTTP Handler
+	// 按路径分流到两个 server 实例：/mcp 是 director，/mcp/explorer 才有 get_post。
 	mcpHandler := mcp.NewStreamableHTTPHandler(
 		func(r *http.Request) *mcp.Server {
+			if strings.HasPrefix(r.URL.Path, "/mcp/explorer") {
+				return appServer.mcpExplorer
+			}
 			return appServer.mcpServer
 		},
 		&mcp.StreamableHTTPOptions{

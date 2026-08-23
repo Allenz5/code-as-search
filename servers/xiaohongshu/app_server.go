@@ -17,6 +17,7 @@ import (
 type AppServer struct {
 	xiaohongshuService *XiaohongshuService
 	mcpServer          *mcp.Server
+	mcpExplorer        *mcp.Server
 	router             *gin.Engine
 	httpServer         *http.Server
 	authToken          string
@@ -30,7 +31,10 @@ func NewAppServer(xiaohongshuService *XiaohongshuService, authToken string) *App
 	}
 
 	// 初始化 MCP Server（需要在创建 appServer 之后，因为工具注册需要访问 appServer）
-	appServer.mcpServer = InitMCPServer(appServer)
+	// 两个实例共用同一个浏览器和 cookie，只是挂出去的工具不同——所以是两个 endpoint
+	// 而不是两个进程，两个进程会抢同一份登录态。
+	appServer.mcpServer = InitMCPServer(appServer, "director")
+	appServer.mcpExplorer = InitMCPServer(appServer, "explorer")
 
 	return appServer
 }
