@@ -6,7 +6,22 @@
       "Agent(page-explorer)",
       "Agent(post-screener)",
       "Agent(pdf-reader)",
-      "Agent(social-explorer)"
+      "Agent(social-explorer)",
+
+      "mcp__x__scrape_timeline",
+      "mcp__reddit__get_subreddit_hot_posts",
+      "mcp__xiaohongshu__list_feeds",
+
+      "mcp__x__get_post",
+      "mcp__x__wait",
+      "mcp__reddit__get_post",
+      "mcp__xiaohongshu__get_post",
+      "mcp__xiaohongshu__wait",
+
+      "mcp__claude_ai_Notion__notion-fetch",
+      "mcp__claude_ai_Notion__notion-query-data-sources",
+      "mcp__claude_ai_Notion__notion-create-pages",
+      "mcp__claude_ai_Notion__notion-update-page"
     ],
     "deny": [
       "WebFetch",
