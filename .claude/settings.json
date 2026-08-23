@@ -11,6 +11,11 @@
       "mcp__x__scrape_timeline",
       "mcp__reddit__get_subreddit_hot_posts",
       "mcp__xiaohongshu__list_feeds",
+      "mcp__linkedin__get_feed",
+
+      "mcp__linkedin__get_person_profile",
+      "mcp__linkedin__get_company_profile",
+      "mcp__linkedin__search_companies",
 
       "mcp__x__get_post",
       "mcp__x__wait",
