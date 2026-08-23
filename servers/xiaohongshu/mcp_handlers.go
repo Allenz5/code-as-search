@@ -295,78 +295,95 @@ func (s *AppServer) handleListFeeds(ctx context.Context) *MCPToolResult {
 func (s *AppServer) handleSearchFeeds(ctx context.Context, args SearchFeedsArgs) *MCPToolResult {
 	logrus.Info("MCP: 搜索Feeds")
 
-	if args.Keyword == "" {
+	if args.Query == "" {
 		return &MCPToolResult{
 			Content: []MCPContent{{
 				Type: "text",
-				Text: "搜索Feeds失败: 缺少关键词参数",
+				Text: "搜索Feeds失败: 缺少 query 参数",
 			}},
 			IsError: true,
 		}
 	}
 
-	logrus.Infof("MCP: 搜索Feeds - 关键词: %s", args.Keyword)
+	logrus.Infof("MCP: 搜索Feeds - 关键词: %s", args.Query)
+
+	if err := browserGate.check(); err != nil {
+		return &MCPToolResult{
+			Content: []MCPContent{{Type: "text", Text: err.Error()}},
+			IsError: true,
+		}
+	}
+
+	// 顶层 sort/time 优先；嵌套写法仍然接受，老调用不至于失效。
+	sortBy := args.Sort
+	if sortBy == "" {
+		sortBy = args.Filters.SortBy
+	}
+	publishTime := args.Time
+	if publishTime == "" {
+		publishTime = args.Filters.PublishTime
+	}
 
 	filter := xiaohongshu.FilterOption{
-		SortBy:      args.Filters.SortBy,
+		SortBy:      sortBy,
 		NoteType:    args.Filters.NoteType,
-		PublishTime: args.Filters.PublishTime,
+		PublishTime: publishTime,
 		SearchScope: args.Filters.SearchScope,
 		Location:    args.Filters.Location,
 	}
 
-	result, err := s.xiaohongshuService.SearchFeeds(ctx, args.Keyword, filter)
+	result, err := s.xiaohongshuService.SearchFeeds(ctx, args.Query, filter)
 	if err != nil {
+		if throttled(err) {
+			browserGate.penalize()
+			return &MCPToolResult{
+				Content: []MCPContent{{Type: "text", Text: "搜索失败，判定为限流并已进入退避: " + err.Error()}},
+				IsError: true,
+			}
+		}
 		return &MCPToolResult{
 			Content: []MCPContent{{
 				Type: "text",
-				Text: "搜索Feeds失败: " + err.Error(),
+				Text: "搜索失败: " + err.Error(),
 			}},
 			IsError: true,
 		}
 	}
+	browserGate.succeed()
 
-	jsonData, err := json.MarshalIndent(result, "", "  ")
-	if err != nil {
-		return &MCPToolResult{
-			Content: []MCPContent{{
-				Type: "text",
-				Text: fmt.Sprintf("搜索Feeds成功，但序列化失败: %v", err),
-			}},
-			IsError: true,
-		}
+	// 首屏出多少条由站点决定；limit 是调用方唯一能约束它的手段。
+	feeds := result.Feeds
+	if args.Limit > 0 && len(feeds) > args.Limit {
+		feeds = feeds[:args.Limit]
 	}
 
 	return &MCPToolResult{
 		Content: []MCPContent{{
 			Type: "text",
-			Text: string(jsonData),
+			Text: renderSearchResults(args.Query, feeds),
 		}},
 	}
 }
 
 // handleGetFeedDetail 处理获取Feed详情
 func (s *AppServer) handleGetFeedDetail(ctx context.Context, args map[string]any) *MCPToolResult {
-	logrus.Info("MCP: 获取Feed详情")
+	logrus.Info("MCP: 读取笔记")
 
-	feedID, ok := args["feed_id"].(string)
-	if !ok || feedID == "" {
+	link, ok := args["url"].(string)
+	if !ok || link == "" {
 		return &MCPToolResult{
 			Content: []MCPContent{{
 				Type: "text",
-				Text: "获取Feed详情失败: 缺少feed_id参数",
+				Text: "读取笔记失败: 缺少 url 参数",
 			}},
 			IsError: true,
 		}
 	}
+	feedID, xsecToken := parseNoteURL(link)
 
-	xsecToken, ok := args["xsec_token"].(string)
-	if !ok || xsecToken == "" {
+	if err := browserGate.check(); err != nil {
 		return &MCPToolResult{
-			Content: []MCPContent{{
-				Type: "text",
-				Text: "获取Feed详情失败: 缺少xsec_token参数",
-			}},
+			Content: []MCPContent{{Type: "text", Text: err.Error()}},
 			IsError: true,
 		}
 	}
@@ -433,21 +450,29 @@ func (s *AppServer) handleGetFeedDetail(ctx context.Context, args map[string]any
 
 	result, err := s.xiaohongshuService.GetFeedDetailWithConfig(ctx, feedID, xsecToken, loadAll, config)
 	if err != nil {
+		if throttled(err) {
+			browserGate.penalize()
+			return &MCPToolResult{
+				Content: []MCPContent{{Type: "text", Text: "读取笔记失败，判定为限流并已进入退避: " + err.Error()}},
+				IsError: true,
+			}
+		}
 		return &MCPToolResult{
 			Content: []MCPContent{{
 				Type: "text",
-				Text: "获取Feed详情失败: " + err.Error(),
+				Text: "读取笔记失败: " + err.Error(),
 			}},
 			IsError: true,
 		}
 	}
+	browserGate.succeed()
 
-	jsonData, err := json.MarshalIndent(result, "", "  ")
-	if err != nil {
+	detail, ok := result.Data.(*xiaohongshu.FeedDetailResponse)
+	if !ok {
 		return &MCPToolResult{
 			Content: []MCPContent{{
 				Type: "text",
-				Text: fmt.Sprintf("获取Feed详情成功，但序列化失败: %v", err),
+				Text: fmt.Sprintf("读取笔记失败: 详情类型异常 %T", result.Data),
 			}},
 			IsError: true,
 		}
@@ -456,9 +481,30 @@ func (s *AppServer) handleGetFeedDetail(ctx context.Context, args map[string]any
 	return &MCPToolResult{
 		Content: []MCPContent{{
 			Type: "text",
-			Text: string(jsonData),
+			Text: renderFeedDetail(noteURL(feedID, xsecToken), detail),
 		}},
 	}
+}
+
+// handleWait 等限流冷却过去
+func (s *AppServer) handleWait(ctx context.Context) *MCPToolResult {
+	slept, remaining := browserGate.cool(ctx)
+
+	var text string
+	switch {
+	case slept == 0 && remaining > 0:
+		text = fmt.Sprintf("已经等过太多次，还剩 %s。别再等了，把这次读取报为失败",
+			remaining.Round(time.Second))
+	case slept == 0:
+		text = "没有在冷却，可以直接重试"
+	case remaining > 0:
+		text = fmt.Sprintf("等了 %s，还剩 %s——再调一次 wait",
+			slept.Round(time.Second), remaining.Round(time.Second))
+	default:
+		text = fmt.Sprintf("等了 %s，冷却结束，可以重试了", slept.Round(time.Second))
+	}
+
+	return &MCPToolResult{Content: []MCPContent{{Type: "text", Text: text}}}
 }
 
 // handleUserProfile 获取用户主页

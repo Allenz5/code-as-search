@@ -40,8 +40,13 @@ type PublishVideoArgs struct {
 
 // SearchFeedsArgs 搜索内容的参数
 type SearchFeedsArgs struct {
-	Keyword string       `json:"keyword" jsonschema:"搜索关键词"`
-	Filters FilterOption `json:"filters,omitempty" jsonschema:"筛选选项"`
+	Query string `json:"query" jsonschema:"搜索关键词"`
+	// sort/time/limit 与 reddit、x 两个 server 对齐命名；其余筛选项在那边没有对应
+	// 物，保留原名。
+	Sort    string       `json:"sort,omitempty" jsonschema:"排序依据: 综合|最新|最多点赞|最多评论|最多收藏,默认为'综合'"`
+	Time    string       `json:"time,omitempty" jsonschema:"发布时间: 不限|一天内|一周内|半年内,默认为'不限'"`
+	Limit   int          `json:"limit,omitempty" jsonschema:"返回条数上限，默认返回搜索首屏全部（约20条）"`
+	Filters FilterOption `json:"filters,omitempty" jsonschema:"其余筛选项: note_type 笔记类型、search_scope 搜索范围、location 位置距离"`
 }
 
 // FilterOption 筛选选项结构体
@@ -55,10 +60,9 @@ type FilterOption struct {
 
 // FeedDetailArgs 获取Feed详情的参数
 type FeedDetailArgs struct {
-	FeedID           string `json:"feed_id" jsonschema:"小红书笔记ID，从Feed列表获取"`
-	XsecToken        string `json:"xsec_token" jsonschema:"访问令牌，从Feed列表的xsecToken字段获取"`
+	URL              string `json:"url" jsonschema:"笔记 URL，由 search 返回"`
 	LoadAllComments  bool   `json:"load_all_comments,omitempty" jsonschema:"是否加载全部评论。false仅返回前10条一级评论（默认），true滚动加载更多评论"`
-	Limit            int    `json:"limit,omitempty" jsonschema:"【仅当load_all_comments为true时生效】限制加载的一级评论数量。例如20表示最多加载20条，默认20"`
+	CommentLimit     int    `json:"comment_limit,omitempty" jsonschema:"【仅当load_all_comments为true时生效】限制加载的一级评论数量。例如20表示最多加载20条，默认20"`
 	ClickMoreReplies bool   `json:"click_more_replies,omitempty" jsonschema:"【仅当load_all_comments为true时生效】是否展开二级回复。true展开子评论，false不展开（默认）"`
 	ReplyLimit       int    `json:"reply_limit,omitempty" jsonschema:"【仅当click_more_replies为true时生效】跳过回复数过多的评论。例如10表示跳过超过10条回复的，默认10"`
 	ScrollSpeed      string `json:"scroll_speed,omitempty" jsonschema:"【仅当load_all_comments为true时生效】滚动速度slow慢速、normal正常、fast快速"`
@@ -271,15 +275,31 @@ func registerTools(server *mcp.Server, appServer *AppServer) {
 	// 工具 6: 搜索内容
 	mcp.AddTool(server,
 		&mcp.Tool{
-			Name:        "search_feeds",
-			Description: "搜索小红书内容（需要已登录）",
+			Name:        "search",
+			Description: "搜索小红书内容（需要已登录）。每条返回标题、作者、互动数与 URL；把 URL 交给 get_post 读正文和评论。",
 			Annotations: &mcp.ToolAnnotations{
-				Title:        "Search Feeds",
+				Title:        "Search",
 				ReadOnlyHint: true,
 			},
 		},
-		withPanicRecovery("search_feeds", func(ctx context.Context, req *mcp.CallToolRequest, args SearchFeedsArgs) (*mcp.CallToolResult, any, error) {
+		withPanicRecovery("search", func(ctx context.Context, req *mcp.CallToolRequest, args SearchFeedsArgs) (*mcp.CallToolResult, any, error) {
 			result := appServer.handleSearchFeeds(ctx, args)
+			return convertToMCPResult(result), nil, nil
+		}),
+	)
+
+	// 工具: 等限流冷却过去
+	mcp.AddTool(server,
+		&mcp.Tool{
+			Name:        "wait",
+			Description: "等小红书的限流冷却过去。被 search 或 get_post 告知正在冷却时调用，返回后重试即可。冷却较长时会分几次等完，按提示再调一次。",
+			Annotations: &mcp.ToolAnnotations{
+				Title:        "Wait",
+				ReadOnlyHint: true,
+			},
+		},
+		withPanicRecovery("wait", func(ctx context.Context, req *mcp.CallToolRequest, _ any) (*mcp.CallToolResult, any, error) {
+			result := appServer.handleWait(ctx)
 			return convertToMCPResult(result), nil, nil
 		}),
 	)
@@ -287,17 +307,16 @@ func registerTools(server *mcp.Server, appServer *AppServer) {
 	// 工具 7: 获取Feed详情
 	mcp.AddTool(server,
 		&mcp.Tool{
-			Name:        "get_feed_detail",
-			Description: "获取小红书笔记详情，返回笔记内容、图片、作者信息、互动数据（点赞/收藏/分享数）及评论列表。视频笔记额外返回 video 字段，含各编码档位的视频直链与字幕地址（均带签名、有时效）。默认返回前10条一级评论，如需更多评论请设置load_all_comments=true",
+			Name:        "get_post",
+			Description: "读取一篇小红书笔记的正文与评论。默认返回前10条一级评论，如需更多请设置 load_all_comments=true",
 			Annotations: &mcp.ToolAnnotations{
-				Title:        "Get Feed Detail",
+				Title:        "Get Post",
 				ReadOnlyHint: true,
 			},
 		},
-		withPanicRecovery("get_feed_detail", func(ctx context.Context, req *mcp.CallToolRequest, args FeedDetailArgs) (*mcp.CallToolResult, any, error) {
+		withPanicRecovery("get_post", func(ctx context.Context, req *mcp.CallToolRequest, args FeedDetailArgs) (*mcp.CallToolResult, any, error) {
 			argsMap := map[string]interface{}{
-				"feed_id":           args.FeedID,
-				"xsec_token":        args.XsecToken,
+				"url":               args.URL,
 				"load_all_comments": args.LoadAllComments,
 			}
 
@@ -306,7 +325,7 @@ func registerTools(server *mcp.Server, appServer *AppServer) {
 				argsMap["click_more_replies"] = args.ClickMoreReplies
 
 				// 设置评论数量限制，默认20
-				limit := args.Limit
+				limit := args.CommentLimit
 				if limit <= 0 {
 					limit = 20
 				}
@@ -504,7 +523,7 @@ func registerTools(server *mcp.Server, appServer *AppServer) {
 	mcp.AddTool(server,
 		&mcp.Tool{
 			Name:        "list_notifications",
-			Description: "获取通知列表。返回评论内容、评论者、以及对应笔记的 feed_id 和 xsec_token（可用于 get_feed_detail 读原帖）。已删除或不可见的条目会被过滤，过滤数量见 filtered 字段。注意：会清除该分区的未读标记，只需要未读数时用 get_unread_count。",
+			Description: "获取通知列表。返回评论内容、评论者、以及对应笔记的 feed_id 和 xsec_token（可用于 get_post 读原帖）。已删除或不可见的条目会被过滤，过滤数量见 filtered 字段。注意：会清除该分区的未读标记，只需要未读数时用 get_unread_count。",
 			Annotations: &mcp.ToolAnnotations{
 				Title:        "List Notifications",
 				ReadOnlyHint: true,

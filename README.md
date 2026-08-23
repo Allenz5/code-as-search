@@ -11,9 +11,9 @@ ln -s "$PWD" ~/.claude/skills/claude-toolkit
 echo "FIRECRAWL_API_KEY=fc-..." > .env
 ```
 
-`make setup` builds four dependency trees — a Python venv for the servers in
-`servers/mcp_servers/`, a separate uv-managed venv for LinkedIn, npm packages for X, and a Go
-binary for Xiaohongshu. `make check` shows what Claude Code can actually reach.
+`make setup` builds three dependency trees — a Python venv for the servers in
+`servers/mcp_servers/`, npm packages for X, and a Go binary for Xiaohongshu. `make check`
+shows what Claude Code can actually reach.
 
 ## The research agent
 
@@ -50,6 +50,29 @@ the whole point:
 The main loop has no scrape tool at all, so page content stops in the subagent's context and on
 disk — only findings come back. `deny: WebFetch` in `.claude/settings.json` closes the last door.
 
+The three social servers split the same way, by tool rather than by profile: the main loop
+searches, `social-explorer` reads. `search` returns one line per post — title, author and
+engagement, URL — and `get_post` returns the body and the comment tree. Only the subagent is
+given `get_post`.
+
+### One shape across four sources
+
+`search` means the same thing on all four servers, and answers in the same lines:
+
+```
+20 results for "CRM 推荐" · xiaohongshu
+
+1. 终于找到了一个适合startup的CRM
+   @Sunmin的美国创业笔记 · ♥50 💬22 ⭐35
+   https://www.xiaohongshu.com/explore/6998e040...?xsec_token=ABFnmZk...
+```
+
+Every result is addressed by URL — a Xiaohongshu note folds its `xsec_token` into the query
+string — so the director hands a URL to a subagent without caring which platform it came from.
+Reddit's search truncates post bodies at 2,000 characters, because a search that returns whole
+bodies is unbounded: the longest measured here was 19,426 characters, and one call cost 18k
+tokens.
+
 ## Servers
 
 | | `servers/` | runtime | transport | login |
@@ -57,25 +80,31 @@ disk — only findings come back. `deny: WebFetch` in `.claude/settings.json` cl
 | research / explorer | `mcp_servers/firecrawl_server` | Python | stdio | Firecrawl API key |
 | reddit | `mcp_servers/reddit_server` | Python | stdio | none |
 | x | `x/` | Node | stdio | manual, visible browser |
-| linkedin | `linkedin/` | Python (uv) | stdio | `--login --no-headless` |
 | xiaohongshu | `xiaohongshu/` | Go | **HTTP** | QR code |
 
 Xiaohongshu is the odd one out: it speaks HTTP on `:18060`, so it has to be running before
-Claude Code can reach it. The other four are spawned on demand.
+Claude Code can reach it. The other three are spawned on demand.
 
 ```bash
-make xhs      # start it
+make xhs        # start it
+make xhs-login  # same, with a window, when a login needs watching
 ```
 
-`servers/x/` and `servers/linkedin/` are de-vendored forks of `@barresider/x-mcp` and
-`stickerdaniel/linkedin-mcp-server`; `servers/xiaohongshu/` of `xpzouying/xiaohongshu-mcp`.
-Full history for the first two lives at `Allenz5/x-mcp-server` and
-`Allenz5/linkedin-mcp-server`. They are maintained here now — there is no upstream sync.
+Log in by fetching the QR and scanning it; that works headless. Restart the server if a call
+ever hangs — a process left up for a day gets into a state where the login page stops
+rendering, and `FetchQrcodeImage` used to wait for it forever.
 
-## A warning about the three social servers
+`servers/x/` is a de-vendored fork of `@barresider/x-mcp` and `servers/xiaohongshu/` of
+`xpzouying/xiaohongshu-mcp`. Full history for the first lives at `Allenz5/x-mcp-server`.
+They are maintained here now — there is no upstream sync.
 
-All three impersonate a logged-in session, which every one of those platforms forbids. LinkedIn
-enforces it hardest and specifically targets browser automation: read-only scraping is enough to
-get an account restricted, and first-offence suspensions happen. Use a throwaway account, cap
-daily volume rather than just per-minute rate, and do not run around the clock — a request
-stream with no circadian rhythm is the easiest thing in the world to spot.
+## A warning about the social servers
+
+X and Xiaohongshu both impersonate a logged-in session, which both platforms forbid. Use a
+throwaway account, cap daily volume rather than just per-minute rate, and do not run around the
+clock — a request stream with no circadian rhythm is the easiest thing in the world to spot.
+`social-explorer` is capped at three in flight for the same reason, and because each one drives
+its own browser.
+
+Every tool that posts, messages or reacts is in `deny` in `.claude/settings.json`. A research
+run reads.

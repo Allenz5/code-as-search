@@ -61,7 +61,7 @@ type NotificationUser struct {
 
 // NotificationItem 一条通知。
 //
-// FeedID / FeedXsecToken 取自笔记信息，与 get_feed_detail、reply_comment_in_feed
+// FeedID / FeedXsecToken 取自笔记信息，与 get_post、reply_comment_in_feed
 // 所需的参数一致，调用方可以直接拿去读原帖或走笔记页回复。
 type NotificationItem struct {
 	ID            string           `json:"id"`

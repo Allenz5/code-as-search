@@ -3,10 +3,35 @@
     "allow": [
       "mcp__plugin_claude-toolkit_research",
       "mcp__explorer",
-      "Agent(claude-toolkit:page-explorer)"
+      "Agent(claude-toolkit:page-explorer)",
+      "Agent(claude-toolkit:pdf-reader)",
+      "Agent(claude-toolkit:social-explorer)"
     ],
     "deny": [
-      "WebFetch"
+      "WebFetch",
+      "mcp__plugin_claude-toolkit_x__tweet",
+      "mcp__plugin_claude-toolkit_x__thread",
+      "mcp__plugin_claude-toolkit_x__reply_to_post",
+      "mcp__plugin_claude-toolkit_x__reply_to_comment_by_id",
+      "mcp__plugin_claude-toolkit_x__replace_comment_by_id",
+      "mcp__plugin_claude-toolkit_x__quote_tweet",
+      "mcp__plugin_claude-toolkit_x__like_post",
+      "mcp__plugin_claude-toolkit_x__unlike_post",
+      "mcp__plugin_claude-toolkit_x__like_comment_by_id",
+      "mcp__plugin_claude-toolkit_x__unlike_comment_by_id",
+      "mcp__plugin_claude-toolkit_x__retweet_post",
+      "mcp__plugin_claude-toolkit_x__unretweet_post",
+      "mcp__plugin_claude-toolkit_x__bookmark_post",
+      "mcp__plugin_claude-toolkit_x__unbookmark_post",
+      "mcp__plugin_claude-toolkit_xiaohongshu__publish_content",
+      "mcp__plugin_claude-toolkit_xiaohongshu__publish_with_video",
+      "mcp__plugin_claude-toolkit_xiaohongshu__post_comment_to_feed",
+      "mcp__plugin_claude-toolkit_xiaohongshu__reply_comment_in_feed",
+      "mcp__plugin_claude-toolkit_xiaohongshu__reply_notification",
+      "mcp__plugin_claude-toolkit_xiaohongshu__like_feed",
+      "mcp__plugin_claude-toolkit_xiaohongshu__like_notification",
+      "mcp__plugin_claude-toolkit_xiaohongshu__favorite_feed",
+      "mcp__plugin_claude-toolkit_xiaohongshu__delete_cookies"
     ]
   }
 }

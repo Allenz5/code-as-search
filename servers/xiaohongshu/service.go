@@ -618,6 +618,9 @@ func (s *XiaohongshuService) ReplyNotification(ctx context.Context, commentID, c
 }
 
 func newBrowser() *headless_browser.Browser {
+	// 所有走浏览器的调用都收口到这里，所以间隔下限加在这。
+	browserGate.pace()
+
 	return browser.NewBrowser(configs.IsHeadless(),
 		browser.WithFingerprintSeed(configs.FingerprintSeed()),
 		browser.WithProxy(configs.Proxy()),

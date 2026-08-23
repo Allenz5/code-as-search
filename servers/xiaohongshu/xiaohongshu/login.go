@@ -88,7 +88,10 @@ func (a *LoginAction) Login(ctx context.Context) error {
 }
 
 func (a *LoginAction) FetchQrcodeImage(ctx context.Context) (string, bool, error) {
-	pp := a.page.Context(ctx)
+	// 加超时保护：取二维码是"拿一张图"，不是"等人扫码"（那是 WaitForLogin 的事），
+	// 所以它必须有自己的 deadline。没有的话，弹窗不出现时 MustElement 会永久挂住
+	// 整个请求，而且泄漏一个 Chromium——长期运行的进程真的会走到这一步。
+	pp := a.page.Context(ctx).Timeout(30 * time.Second)
 
 	// 导航到小红书首页，这会触发二维码弹窗
 	pp.MustNavigate("https://www.xiaohongshu.com/explore").MustWaitLoad()
@@ -99,7 +102,14 @@ func (a *LoginAction) FetchQrcodeImage(ctx context.Context) (string, bool, error
 		return "", true, nil
 	}
 
-	src, err := pp.MustElement(".login-container .qrcode-img").Attribute("src")
+	// Element 而非 MustElement：超时要作为错误返回给调用方，而不是 panic 穿透。
+	el, err := pp.Element(".login-container .qrcode-img")
+	if err != nil {
+		return "", false, errors.Wrap(err,
+			"登录二维码未出现；重启服务后重试，仍不行就用 -headless=false 看页面实际是什么")
+	}
+
+	src, err := el.Attribute("src")
 	if err != nil {
 		return "", false, errors.Wrap(err, "get qrcode src failed")
 	}

@@ -6,6 +6,7 @@ Hawstein); maintained here independently — no upstream sync.
 
 from enum import Enum
 import json
+import re
 import redditwarp.SYNC
 import redditwarp.models.subreddit
 from mcp.server import MCPServer
@@ -205,6 +206,70 @@ class RedditServer:
         return posts
 
 
+EXCERPT_CAP = 2000
+
+
+def _excerpt(text: str | None) -> str:
+    """One-line body excerpt for search results. A search tool that returns whole
+    post bodies is unbounded — the longest measured here was 19,426 characters."""
+    if not text:
+        return ""
+    text = " ".join(text.split())
+    if len(text) <= EXCERPT_CAP:
+        return text
+    return f"{text[:EXCERPT_CAP]}… (full body {len(text)} chars — get_post to read it)"
+
+
+def _post_id(url: str) -> str:
+    """id36 out of a permalink; a bare id passes through."""
+    m = re.search(r"/comments/([a-z0-9]+)", url)
+    return m.group(1) if m else url.strip().strip("/").split("/")[-1]
+
+
+def _render_results(query: str, posts: list[Post]) -> str:
+    if not posts:
+        return f'no results for "{query}" · reddit'
+    lines = [f'{len(posts)} results for "{query}" · reddit\n']
+    for i, post in enumerate(posts, 1):
+        lines.append(f"{i}. {post.title}")
+        lines.append(
+            f"   @{post.author} · ↑{post.score} 💬{post.comment_count} · {post.created_at[:10]} · r/{post.subreddit}"
+        )
+        lines.append(f"   {post.url}")
+        # For link and gallery posts `content` is just a URL again — no excerpt.
+        if post.post_type is PostType.TEXT and (ex := _excerpt(post.content)):
+            lines.append(f"   {ex}")
+        lines.append("")
+    return "\n".join(lines).rstrip()
+
+
+def _render_comment(comment: Comment, depth: int = 0) -> list[str]:
+    pad = "  " * depth
+    body = " ".join((comment.body or "").split())
+    out = [f"{pad}↑{comment.score} @{comment.author}: {body}"]
+    for reply in comment.replies:
+        out += _render_comment(reply, depth + 1)
+    return out
+
+
+def _render_post(detail: PostDetail) -> str:
+    post = detail.post
+    lines = [
+        post.title,
+        f"@{post.author} · ↑{post.score} 💬{post.comment_count} · {post.created_at[:10]} · r/{post.subreddit}",
+        post.url,
+        "-" * 60,
+    ]
+    if post.post_type is PostType.TEXT:
+        lines.append(post.content or "(empty body)")
+    elif post.content:
+        lines.append(f"({post.post_type.value} post) {post.content}")
+    lines += ["-" * 60, f"COMMENTS ({len(detail.comments)} of {post.comment_count})"]
+    for comment in detail.comments:
+        lines += _render_comment(comment)
+    return "\n".join(lines)
+
+
 def _dump(result) -> str:
     return json.dumps(result, default=lambda x: x.model_dump(), indent=2)
 
@@ -273,15 +338,15 @@ def build() -> MCPServer:
         return _dump(reddit.get_subreddit_rising_posts(subreddit_name, limit))
 
     @mcp.tool()
-    def get_post_content(post_id: str, comment_limit: int = 10, comment_depth: int = 3) -> str:
-        """Get detailed content of a specific post.
+    def get_post(url: str, comment_limit: int = 10, comment_depth: int = 3) -> str:
+        """Read one post in full: body and comment tree.
 
         Args:
-            post_id: ID of the post.
+            url: The post's URL, as returned by `search`.
             comment_limit: Number of top-level comments to return (default 10, max 100).
             comment_depth: Maximum depth of the comment tree (default 3, max 10).
         """
-        return _dump(reddit.get_post_content(post_id, comment_limit, comment_depth))
+        return _render_post(reddit.get_post_content(_post_id(url), comment_limit, comment_depth))
 
     @mcp.tool()
     def get_post_comments(post_id: str, limit: int = 10) -> str:
@@ -294,22 +359,25 @@ def build() -> MCPServer:
         return _dump(reddit.get_post_comments(post_id, limit))
 
     @mcp.tool()
-    def search_posts(
+    def search(
         query: str,
-        subreddit_name: str = "",
+        subreddit: str = "",
         limit: int = 10,
         sort: str = "relevance",
         time: str = "all",
     ) -> str:
-        """Search for posts across all of Reddit, or within a single subreddit.
+        """Search posts across all of Reddit, or within a single subreddit.
+
+        Returns one entry per post: title, author, engagement, date, URL and a body
+        excerpt. Pass a URL to `get_post` to read the post and its comments.
 
         Args:
             query: Search query.
-            subreddit_name: Limit the search to one subreddit. Omit to search all of Reddit.
+            subreddit: Limit the search to one subreddit. Omit to search all of Reddit.
             limit: Number of posts to return (default 10, max 100).
             sort: 'relevance', 'hot', 'top', 'new' or 'comments'.
             time: 'all', 'hour', 'day', 'week', 'month' or 'year'.
         """
-        return _dump(reddit.search_posts(query, subreddit_name, limit, sort, time))
+        return _render_results(query, reddit.search_posts(query, subreddit, limit, sort, time))
 
     return mcp

@@ -1,19 +1,13 @@
-# Project Guidelines
+# CLAUDE.md
 
-##  本地开发规范
+本文件为 Claude Code 在本目录下工作时提供指引。
 
-- 要求每次修改完后,需要帮我格式化 Go 源码文件.
-- 测试过程中产生的脚本和build中间文件,如果没有必要,则删除.
-- 所有的feature变更,都需要使用分支进行开发.
-- 在我未同意之前, 你不能推送到远程.
-- 我需要: 1.本地 review; 2.远程 PR review.
-- 不要过度设计, 保持代码的简洁和易读.
-- 使用中文注释，一定要简洁明了.专业名词可以用英文.
+## 浏览器自动化
 
-## 发版规范
+- **优先用 go-rod 的原生行为，而不是 JS 注入。** 点击、输入、滚动等交互能用 go-rod API 表达的就不要用 `page.Eval` / `MustEval` 注入脚本。JS 注入只用于读取无法从 DOM API 直接拿到的状态（如 `window.innerWidth`、`getComputedStyle`）。
 
-- 发版=打语义化 tag `vX.Y.Z` 推上去（触发 Release 与 Docker 镜像），破坏性变更进 major；main 每次推送自动生成的日期 tag `vYYYY.MM.DD.HHMM-sha` 不是发版，别跟它混。
+## 代码风格
 
-## PR Review 重点
-
-- 重点：PR 代码中如果出现大量的 JS 注入的行为，要检查一下是否是必须的，如果可以用 Go 的 go-rod 替代的话，则直接评论需要用 go-rod 行为替代。
+- 修改完 Go 源码后执行 `gofmt`。
+- 使用中文注释，简洁明了，专业名词保留英文。
+- 不要过度设计，保持代码简洁易读。

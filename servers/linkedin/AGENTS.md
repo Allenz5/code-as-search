@@ -9,10 +9,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Format: `uv run ruff format .`
 - Type check: `uv run ty check` (using ty, not mypy)
 - Tests: `uv run pytest` (with coverage: `uv run pytest --cov`)
-- Pre-commit: `uv run pre-commit install` then `uv run pre-commit run --all-files`
 - Run server locally: `uv run -m linkedin_mcp_server --no-headless`
-- Run via uvx (PyPI/package verification only): `uvx linkedin-scraper-mcp`
-- Docker build: `docker build -t linkedin-mcp-server .`
 - Install browser: `uv run patchright install chromium`
 
 ## Scraping Rules
@@ -35,7 +32,7 @@ Optional additional keys:
 
 ## Verifying Bug Reports
 
-Always verify scraping bugs end-to-end against live LinkedIn, not just code analysis. Use `uv run`, not `uvx`, so the running process reflects your workspace. Use `uvx` only for packaged distribution verification. For live Docker investigations, refresh the source session first with `uv run -m linkedin_mcp_server --login` before testing each materially different approach. Assume a valid login profile already exists at `~/.linkedin-mcp/profile/`.
+Always verify scraping bugs end-to-end against live LinkedIn, not just code analysis. Run the server from this workspace with `uv run` so the running process reflects your edits. Assume a valid login profile already exists at `~/.linkedin-mcp/profile/`.
 
 ```bash
 # Start server
@@ -56,63 +53,4 @@ curl -s -X POST http://127.0.0.1:8000/mcp \
   -H "Accept: application/json, text/event-stream" \
   -H "Mcp-Session-Id: $SESSION_ID" \
   -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"get_person_profile","arguments":{"linkedin_username":"williamhgates","sections":"posts"}}}'
-```
-
-## Release Process
-
-```bash
-git checkout main && git pull
-uv version --bump minor          # or: major, patch — updates pyproject.toml AND uv.lock
-gt create -m "chore: Bump version to X.Y.Z"
-gt submit                        # merge PR to trigger release workflow
-```
-
-The CI release workflow automatically updates `manifest.json` and `docker-compose.yml` with the new version — do not update them manually.
-
-After the workflow completes, file a PR in the MCP registry to update the version.
-
-## Commit Messages
-
-- Follow conventional commits: `type(scope): subject`
-- Types: feat, fix, docs, style, refactor, test, chore, perf, ci
-- Keep subject <50 chars, imperative mood
-
-## Development Workflow
-
-Always read [`CONTRIBUTING.md`](CONTRIBUTING.md) before filing an issue or working on this repository.
-
-- Write a short synthetic prompt that would reproduce the PR diff if given to a fresh Claude Code session. Don't copy the user's first message — distill the conversation into a single instruction that captures the full scope of changes. This tells the maintainer what was intended, which is often more useful than reviewing the full diff. Use a Markdown blockquote under a `## Synthetic prompt` heading, followed by the model attribution:
-  ```
-  ## Synthetic prompt
-
-  > Add `skills` and `projects` sections to `get_person_profile`, following the certifications PR pattern. Update fields, tests, docs, and manifest.
-
-  Generated with <model name and version>
-  ```
-- When implementing a new feature/fix:
-  1. Check open issues. If no issue exists, create one following the templates in `.github/ISSUE_TEMPLATE/`. Fill in every section; delete optional sections if not applicable.
-  2. Branch from `main`: `feature/issue-number-short-description`
-  3. Implement and test
-  4. Update README.md and docs/docker-hub.md if relevant
-  5. Create a draft PR; only convert to regular PR when ready to merge
-  6. Review with AI agents first, then manual review. Do not squash commits.
-
-## PR Reviews
-
-Greptile posts initial reviews as PR review comments, but follow-ups as **issue comments**. Always check both.
-
-```bash
-gh api repos/{owner}/{repo}/pulls/{pr}/reviews    # initial reviews
-gh api repos/{owner}/{repo}/pulls/{pr}/comments   # inline comments
-gh api repos/{owner}/{repo}/issues/{pr}/comments   # follow-up reviews
-```
-
-## btca
-
-When you need up-to-date information about technologies used in this project, use btca to query source repositories directly.
-
-```bash
-btca resources                           # list available resources
-btca ask -r <resource> -q "<question>"
-btca ask -r fastmcp -r playwright -q "How do I set up browser context with FastMCP tools?"
 ```

@@ -900,14 +900,14 @@ npx mcporter list xiaohongshu-mcp
   - `visibility`: 可见范围（可选），支持 `公开可见`（默认）、`仅自己可见`、`仅互关好友可见`
   - `products`: 商品关键词列表（可选），用于绑定带货商品。填写商品名称或商品ID，系统会自动搜索并选择第一个匹配结果。需账号已开通商品功能。示例: [面膜, 防晒霜SPF50]
 - `list_feeds` - 获取小红书首页推荐列表（无参数）
-- `search_feeds` - 搜索小红书内容（必需：keyword）
+- `search` - 搜索小红书内容（必需：query）
   - `filters`: 筛选选项（可选）
     - `sort_by`: 排序依据 - `综合`（默认）| `最新` | `最多点赞` | `最多评论` | `最多收藏`
     - `note_type`: 笔记类型 - `不限`（默认）| `视频` | `图文`
     - `publish_time`: 发布时间 - `不限`（默认）| `一天内` | `一周内` | `半年内`
     - `search_scope`: 搜索范围 - `不限`（默认）| `已看过` | `未看过` | `已关注`
     - `location`: 位置距离 - `不限`（默认）| `同城` | `附近`
-- `get_feed_detail` - 获取帖子详情，包括互动数据和评论（必需：feed_id, xsec_token）
+- `get_post` - 读取笔记正文与评论（必需：url，由 search 返回）
   - `load_all_comments`: 是否加载全部评论（可选），默认 false 仅返回前 10 条一级评论
   - `limit`: 限制加载的一级评论数量（可选），仅当 load_all_comments=true 时生效，默认 20
   - `click_more_replies`: 是否展开二级回复（可选），仅当 load_all_comments=true 时生效，默认 false

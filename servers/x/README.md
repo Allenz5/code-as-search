@@ -74,7 +74,7 @@ That's it! Claude can now interact with X/Twitter through 25+ powerful tools inc
 
 - `tweet`: Post a new tweet with optional media
 - `thread`: Post a multi-tweet thread
-- `search_twitter`: Search for tweets with advanced filters
+- `search`: Search for tweets with advanced filters
 - `scrape_profile`: Get comprehensive user profile data
 - `scrape_timeline`: Extract posts from timelines
 - `like_post`, `retweet_post`, `bookmark_post`: Interact with posts
@@ -189,10 +189,10 @@ The server provides 25+ tools for comprehensive X/Twitter interaction:
 ### Content Scraping
 - `scrape_posts` - Scrape posts from current page
 - `scrape_profile` - Get user profile and recent posts
-- `scrape_comments` - Extract comments from posts
+- `get_post` - Read one post and its replies
 - `scrape_timeline` - Scrape For You/Following timelines
 - `scrape_trending` - Get trending topics
-- `search_twitter` - General search functionality
+- `search` - General search functionality
 - `search_viral` - Search for viral content with minimum engagement
 
 ## 📊 Data Structures

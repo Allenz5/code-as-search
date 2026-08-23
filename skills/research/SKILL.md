@@ -52,14 +52,35 @@ Every turn: `memory_read()` first, then do as much of 1–3 as there is work for
 
    Route by document, not by habit: `claude-toolkit:page-explorer` for web pages,
    `claude-toolkit:pdf-reader` for papers
-   and anything else that has a PDF. A long document overflows the scraper and comes back
+   and anything else that has a PDF, `claude-toolkit:social-explorer` for a Reddit, X or
+   Xiaohongshu post. A long document overflows the scraper and comes back
    as an error with no content at all, so send `pdf-reader` the `/pdf/` URL rather than
    sending an explorer the `/html/` one.
 
-3. **Search ahead.** Before you stop for the turn, `search(...)` the next open question and
+   Social explorers are the one exception to "no cap": send at most 3 at a time. Each one
+   drives a browser — X rate-limits a single account across concurrent sessions, and
+   Xiaohongshu launches a Chromium per request.
+
+3. **Search ahead.** Before you stop for the turn, search the next open question and
    pick its URLs, so the next turn opens with somewhere to send explorers instead of having
    to go find out. Prefer primary sources: filings, papers, docs, official pages. Prefer
    specific over general.
+
+   Four search tools answer four different questions, and they all return the same shape —
+   title, author and engagement, URL, excerpt — so pick by what you are asking, not by
+   habit:
+
+   | | reaches |
+   |---|---|
+   | `search` | the open web: filings, docs, papers, news |
+   | `reddit:search` | what practitioners argue about, in threads |
+   | `x:search` | what is being said this week |
+   | `xiaohongshu:search` | Chinese-language consumer and purchase experience |
+
+   A social platform answers "what do people report" — never "what is true". Reach for one
+   when the question is about experience, reception or practice, and for the open web when
+   it is about fact. Hand every URL they return to `social-explorer`; the post body and its
+   comments are not yours to read.
 
 4. **Wait** — only now, and only if nothing landed, nothing is dispatchable, and explorers
    are still out.

@@ -16,7 +16,6 @@ import { z } from "zod";
 
 import { getAuthenticatedPage } from "./behaviors/login";
 import {
-  getTopComments,
   scrapeComments,
   scrapePosts,
   scrapeProfile,
@@ -25,8 +24,9 @@ import {
   SearchPresets,
   searchTwitter,
 } from "./scrapers";
-import { TweetWithMedia } from "./types";
+import { TweetWithMedia, TwitterComment, TwitterPost } from "./types";
 import { getRateLimitHit, RateLimitError } from "./utils";
+import { Throttle } from "./throttle";
 
 // Import post interaction functions
 import {
@@ -88,26 +88,81 @@ const ScrapeProfileSchema = z.object({
     .describe("Maximum number of posts to include"),
 });
 
-const ScrapeCommentsSchema = z.object({
-  postUrl: z.string().url().describe("URL of the post to scrape comments from"),
-  maxComments: z
+const GetPostSchema = z.object({
+  url: z.string().url().describe("URL of the post to read"),
+  comment_limit: z
     .number()
     .min(1)
     .max(100)
     .optional()
     .default(20)
-    .describe("Maximum number of comments to scrape"),
+    .describe("Number of replies to return"),
 });
 
-const SearchTwitterSchema = z.object({
+// Shared rendering. Every research-path tool across the reddit, x and
+// xiaohongshu servers returns the same four lines — title, author + engagement +
+// date, URL, excerpt — so the caller reads one shape regardless of platform.
+// An x post has no title, so its content *is* the first line and there is no
+// fourth.
+const EXCERPT_CAP = 2000;
+
+function excerpt(text: string | undefined | null): string {
+  if (!text) return "";
+  const flat = text.split(/\s+/).join(" ").trim();
+  return flat.length <= EXCERPT_CAP
+    ? flat
+    : `${flat.slice(0, EXCERPT_CAP)}… (full text ${flat.length} chars)`;
+}
+
+function day(ts: Date | string | undefined): string {
+  if (!ts) return "";
+  const d = ts instanceof Date ? ts : new Date(ts);
+  return isNaN(d.getTime()) ? "" : d.toISOString().slice(0, 10);
+}
+
+function postMeta(post: TwitterPost): string {
+  const m = post.metrics;
+  const parts = [
+    `@${post.author.username}`,
+    `♥${m.likesCount} 🔁${m.retweetsCount} 💬${m.repliesCount}`,
+  ];
+  const d = day(post.timestamp);
+  if (d) parts.push(d);
+  return parts.join(" · ");
+}
+
+function renderResults(query: string, posts: TwitterPost[]): string {
+  if (!posts.length) return `no results for "${query}" · x`;
+  const lines = [`${posts.length} results for "${query}" · x`, ""];
+  posts.forEach((post, i) => {
+    lines.push(`${i + 1}. ${excerpt(post.content)}`);
+    lines.push(`   ${postMeta(post)}`);
+    lines.push(`   ${post.url}`);
+    lines.push("");
+  });
+  return lines.join("\n").trimEnd();
+}
+
+function renderPost(post: TwitterPost | undefined, url: string, comments: TwitterComment[]): string {
+  const lines = post
+    ? [post.content, postMeta(post), post.url]
+    : ["(post body not captured)", "", url];
+  lines.push("-".repeat(60), `COMMENTS (${comments.length})`);
+  for (const c of comments) {
+    lines.push(`♥${c.likesCount} @${c.author.username}: ${excerpt(c.content)}`);
+  }
+  return lines.join("\n");
+}
+
+const SearchSchema = z.object({
   query: z.string().describe("Search query"),
-  maxPosts: z
+  limit: z
     .number()
     .min(1)
     .max(100)
     .optional()
     .default(10)
-    .describe("Maximum number of posts to return"),
+    .describe("Number of posts to return"),
 });
 
 const SearchViralSchema = z.object({
@@ -118,13 +173,13 @@ const SearchViralSchema = z.object({
     .optional()
     .default(1000)
     .describe("Minimum number of likes for viral posts"),
-  maxPosts: z
+  limit: z
     .number()
     .min(1)
     .max(100)
     .optional()
     .default(10)
-    .describe("Maximum number of posts to return"),
+    .describe("Number of posts to return"),
 });
 
 const ScrapeTimelineSchema = z.object({
@@ -206,6 +261,7 @@ export class TwitterMCPServer {
   private server: Server;
   private authenticatedPage: Page | null = null;
   private browserContextClose: (() => Promise<void>) | null = null;
+  private readonly throttle = new Throttle();
 
   constructor() {
     this.server = new Server(
@@ -350,29 +406,36 @@ export class TwitterMCPServer {
           },
         } as Tool,
         {
-          name: "scrape_comments",
-          description: "Scrape comments from a post",
+          name: "get_post",
+          description: "Read one post in full: its text and its replies",
           inputSchema: {
             type: "object",
             properties: {
-              postUrl: {
+              url: {
                 type: "string",
-                description: "URL of the post to scrape comments from",
+                description: "URL of the post to read, as returned by search",
               },
-              maxComments: {
+              comment_limit: {
                 type: "number",
-                description: "Maximum number of comments to scrape",
+                description: "Number of replies to return",
                 minimum: 1,
                 maximum: 100,
                 default: 20,
               },
             },
-            required: ["postUrl"],
+            required: ["url"],
           },
         } as Tool,
         {
-          name: "search_twitter",
-          description: "Search for tweets",
+          name: "wait",
+          description:
+            "Sit out X's rate-limit cooldown. Call this when search or get_post says X is cooling down; retry after it returns. A long cooldown takes several calls — the result says when more is left.",
+          inputSchema: { type: "object", properties: {} },
+        } as Tool,
+        {
+          name: "search",
+          description:
+            "Search posts on X. Returns text, author, engagement, date and URL per post; pass a URL to get_post to read its replies.",
           inputSchema: {
             type: "object",
             properties: {
@@ -380,9 +443,9 @@ export class TwitterMCPServer {
                 type: "string",
                 description: "Search query",
               },
-              maxPosts: {
+              limit: {
                 type: "number",
-                description: "Maximum number of posts to return",
+                description: "Number of posts to return",
                 minimum: 1,
                 maximum: 100,
                 default: 10,
@@ -407,9 +470,9 @@ export class TwitterMCPServer {
                 minimum: 100,
                 default: 1000,
               },
-              maxPosts: {
+              limit: {
                 type: "number",
-                description: "Maximum number of posts to return",
+                description: "Number of posts to return",
                 minimum: 1,
                 maximum: 100,
                 default: 10,
@@ -656,6 +719,17 @@ export class TwitterMCPServer {
     this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const { name, arguments: args } = request.params;
       console.error(`Tool called: ${name}`, args);
+
+      // `wait` exists to be callable while cooling down, so it goes ahead of
+      // the gate; everything else drives the shared browser and waits behind it.
+      if (name === "wait") return await this.handleWait();
+
+      const cooling = this.throttle.check();
+      if (cooling) {
+        return { content: [{ type: "text", text: cooling }] as TextContent[], isError: true };
+      }
+      await this.throttle.pace();
+
       const dispatchedAt = Date.now();
 
       try {
@@ -669,10 +743,10 @@ export class TwitterMCPServer {
               return await this.handleScrapePosts(args);
             case "scrape_profile":
               return await this.handleScrapeProfile(args);
-            case "scrape_comments":
-              return await this.handleScrapeComments(args);
-            case "search_twitter":
-              return await this.handleSearchTwitter(args);
+            case "get_post":
+              return await this.handleGetPost(args);
+            case "search":
+              return await this.handleSearch(args);
             case "search_viral":
               return await this.handleSearchViral(args);
             case "scrape_timeline":
@@ -710,9 +784,15 @@ export class TwitterMCPServer {
           }
         })();
         this.throwIfRateLimited(dispatchedAt);
+        this.throttle.succeed();
         return result;
       } catch (error) {
-        return this.handleError(this.upgradeToRateLimit(error, dispatchedAt));
+        const upgraded = this.upgradeToRateLimit(error, dispatchedAt);
+        // A 429 was already being detected here and then thrown away; this is
+        // what makes it change the server's behaviour rather than just its
+        // error message.
+        if (upgraded instanceof RateLimitError) this.throttle.penalize();
+        return this.handleError(upgraded);
       }
     });
   }
@@ -851,43 +931,42 @@ export class TwitterMCPServer {
     };
   }
 
-  private async handleScrapeComments(args: unknown) {
-    const result = ScrapeCommentsSchema.safeParse(args);
+  private async handleWait() {
+    const { slept, remaining } = await this.throttle.cool();
+    const secs = (ms: number) => Math.ceil(ms / 1000);
+    const text =
+      slept === 0 && remaining > 0
+        ? `Waited too many times already, ${secs(remaining)}s still left. Stop waiting and report this read as failed.`
+        : slept === 0
+          ? "Not cooling down — retry now."
+          : remaining > 0
+          ? `Waited ${secs(slept)}s, ${secs(remaining)}s still to go — call wait again.`
+          : `Waited ${secs(slept)}s, cooldown over — retry now.`;
+    return { content: [{ type: "text", text }] as TextContent[] };
+  }
+
+  private async handleGetPost(args: unknown) {
+    const result = GetPostSchema.safeParse(args);
     if (!result.success) {
       throw new McpError(ErrorCode.InvalidParams, `Invalid parameters: ${result.error.message}`);
     }
 
     const page = await this.ensureAuthenticated();
-    const comments = await scrapeComments(page, result.data.postUrl, {
-      maxPosts: result.data.maxComments, // maxPosts is used as maxComments in the function
-    });
+    const { url, comment_limit: commentLimit } = result.data;
 
-    const topComments = getTopComments(comments, 5);
+    // Land on the post first so its own article is the one scrapePosts reads;
+    // scrapeComments then reuses the same page and skips that first article.
+    await page.goto(url);
+    const [post] = await scrapePosts(page, { maxPosts: 1, scrollTimeout: 15000 });
+    const comments = await scrapeComments(page, url, { maxPosts: commentLimit });
 
     return {
-      content: [
-        {
-          type: "text",
-          text: JSON.stringify(
-            {
-              totalComments: comments.length,
-              topComments: topComments.map((comment) => ({
-                author: comment.author.username,
-                content: comment.content,
-                likes: comment.likesCount,
-                replies: comment.repliesCount,
-              })),
-            },
-            null,
-            2
-          ),
-        },
-      ] as TextContent[],
+      content: [{ type: "text", text: renderPost(post, url, comments) }] as TextContent[],
     };
   }
 
-  private async handleSearchTwitter(args: unknown) {
-    const result = SearchTwitterSchema.safeParse(args);
+  private async handleSearch(args: unknown) {
+    const result = SearchSchema.safeParse(args);
     if (!result.success) {
       throw new McpError(ErrorCode.InvalidParams, `Invalid parameters: ${result.error.message}`);
     }
@@ -896,32 +975,12 @@ export class TwitterMCPServer {
     const posts = await searchTwitter(
       page,
       { query: result.data.query },
-      {
-        maxPosts: result.data.maxPosts,
-      }
+      { maxPosts: result.data.limit }
     );
 
     return {
       content: [
-        {
-          type: "text",
-          text: JSON.stringify(
-            {
-              query: result.data.query,
-              count: posts.length,
-              posts: posts.map((post) => ({
-                author: post.author.username,
-                content: post.content.substring(0, 100) + "...",
-                likes: post.metrics.likesCount,
-                retweets: post.metrics.retweetsCount,
-                engagement: post.engagementRate.toFixed(2) + "%",
-                url: post.url,
-              })),
-            },
-            null,
-            2
-          ),
-        },
+        { type: "text", text: renderResults(result.data.query, posts) },
       ] as TextContent[],
     };
   }
@@ -936,35 +995,15 @@ export class TwitterMCPServer {
     const posts = await searchTwitter(
       page,
       SearchPresets.viral(result.data.query, result.data.minLikes),
-      { maxPosts: result.data.maxPosts }
+      { maxPosts: result.data.limit }
     );
 
     return {
       content: [
-        {
-          type: "text",
-          text: JSON.stringify(
-            {
-              query: result.data.query,
-              minLikes: result.data.minLikes,
-              count: posts.length,
-              posts: posts.map((post) => ({
-                author: post.author.username,
-                content: post.content.substring(0, 100) + "...",
-                likes: post.metrics.likesCount,
-                retweets: post.metrics.retweetsCount,
-                engagement: post.engagementRate.toFixed(2) + "%",
-                url: post.url,
-              })),
-            },
-            null,
-            2
-          ),
-        },
+        { type: "text", text: renderResults(result.data.query, posts) },
       ] as TextContent[],
     };
   }
-
   private async handleScrapeTimeline(args: unknown) {
     const result = ScrapeTimelineSchema.safeParse(args);
     if (!result.success) {

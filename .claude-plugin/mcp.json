@@ -28,15 +28,6 @@
         "${CLAUDE_PLUGIN_ROOT}/servers/x/dist/mcp.js"
       ]
     },
-    "linkedin": {
-      "command": "${CLAUDE_PLUGIN_ROOT}/servers/linkedin/.venv/bin/linkedin-mcp-server",
-      "args": [
-        "--transport",
-        "stdio",
-        "--log-level",
-        "ERROR"
-      ]
-    },
     "xiaohongshu": {
       "type": "http",
       "url": "http://localhost:18060/mcp"
