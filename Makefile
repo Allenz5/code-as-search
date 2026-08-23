@@ -1,4 +1,4 @@
-.PHONY: setup build check clean xhs xhs-login x-login install uninstall
+.PHONY: setup build check clean xhs xhs-login x-login install uninstall schedule unschedule
 
 # Four dependency systems, one per server runtime. `setup` brings all of them up
 # from a fresh clone; `check` proves each server actually speaks MCP.
@@ -43,8 +43,21 @@ x-login:
 install: build
 	@./scripts/install.sh
 
-uninstall:
+uninstall: unschedule
 	@./scripts/uninstall.sh
+
+# Run /digest three times a day. Needs `make install` first (it renders the plist),
+# and a repo that is NOT under ~/Desktop, ~/Documents or ~/Downloads — launchd is
+# refused entry to those by TCC.
+schedule: build/com.claude-toolkit.digest.plist
+	cp build/com.claude-toolkit.digest.plist $(HOME)/Library/LaunchAgents/
+	-launchctl bootout gui/$(shell id -u)/com.claude-toolkit.digest 2>/dev/null
+	launchctl bootstrap gui/$(shell id -u) $(HOME)/Library/LaunchAgents/com.claude-toolkit.digest.plist
+	@echo "Scheduled. Fire one now with: launchctl kickstart -k gui/$(shell id -u)/com.claude-toolkit.digest"
+
+unschedule:
+	-@launchctl bootout gui/$(shell id -u)/com.claude-toolkit.digest 2>/dev/null || true
+	-@rm -f $(HOME)/Library/LaunchAgents/com.claude-toolkit.digest.plist
 
 check:
 	@claude mcp list 2>&1 | grep -E 'websearch|reddit|^x:|linkedin|xiaohongshu' || echo "no servers found"

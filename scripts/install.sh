@@ -17,6 +17,17 @@ BUILD="$ROOT/build/agents"
 
 mkdir -p "$AGENTS" "$SKILLS" "$BUILD"
 
+# launchd refuses to execute anything under these, and says only "Operation not
+# permitted" with exit 126 when it happens. Better to fail here, loudly.
+case "$ROOT/" in
+  "$HOME"/Desktop/*|"$HOME"/Documents/*|"$HOME"/Downloads/*)
+    echo "WARNING: $ROOT is under a TCC-protected directory."
+    echo "         Skills and agents will work, but 'make schedule' will not:"
+    echo "         launchd cannot execute files there. Move the repo to e.g."
+    echo "         ~/workspace/ and re-run make install."
+    echo ;;
+esac
+
 echo "==> rendering agent templates"
 for tpl in "$ROOT"/agents/*.md.in; do
   name="$(basename "$tpl" .md.in)"
@@ -65,6 +76,11 @@ reg linkedin linkedin \
 claude mcp remove --scope user xiaohongshu >/dev/null 2>&1 || true
 claude mcp add --scope user --transport http xiaohongshu http://localhost:18060/mcp >/dev/null
 echo "    websearch reddit x linkedin xiaohongshu"
+
+echo "==> rendering the launchd plist"
+sed -e "s|@@TOOLKIT_ROOT@@|$ROOT|g" -e "s|@@HOME@@|$HOME|g" -e "s|@@USER@@|$(id -un)|g" \
+  "$ROOT/scripts/digest.plist.in" > "$ROOT/build/com.claude-toolkit.digest.plist"
+echo "    build/com.claude-toolkit.digest.plist  (run 'make schedule' to load it)"
 
 # The old skills-dir plugin symlink would double-register everything.
 if [ -L "$SKILLS/claude-toolkit" ]; then
