@@ -160,6 +160,16 @@ function renderTimeline(label: string, posts: TwitterPost[]): string {
   return renderPostList(`${posts.length} posts · ${label}`, posts, `no posts · ${label}`);
 }
 
+// How many articles to look through for the requested post. A status page shows
+// the post, whatever it replies to, and the start of the reply tree, so the one
+// we want is near the top — but not dependably first.
+const GET_POST_SCAN = 8;
+
+/** The status id in a post URL, or undefined if this is not a status URL. */
+function parseStatusId(url: string): string | undefined {
+  return /\/status\/(\d+)/.exec(url)?.[1];
+}
+
 function renderPost(post: TwitterPost | undefined, url: string, comments: TwitterComment[]): string {
   const lines = post
     ? [post.content, postMeta(post), post.url]
@@ -985,10 +995,28 @@ export class TwitterMCPServer {
     const page = await this.ensureAuthenticated();
     const { url, comment_limit: commentLimit } = result.data;
 
-    // Land on the post first so its own article is the one scrapePosts reads;
-    // scrapeComments then reuses the same page and skips that first article.
     await page.goto(url);
-    const [post] = await scrapePosts(page, { maxPosts: 1, scrollTimeout: 15000 });
+
+    // The requested post is not reliably the first article on the page. When it
+    // is a reply or a quote, X renders what it answers above it, and taking
+    // article #1 silently returns that other post under the caller's URL — a
+    // wrong body attributed to the right link, which is worse than an error
+    // because nothing downstream can tell. So scan a few articles and pick the
+    // one whose id actually matches; the id was always there to check against.
+    const wantedId = parseStatusId(url);
+    const posts = await scrapePosts(page, { maxPosts: GET_POST_SCAN, scrollTimeout: 15000 });
+    const post = wantedId ? posts.find((p) => p.postId === wantedId) : posts[0];
+
+    if (wantedId && !post) {
+      const seen = posts.map((p) => `${p.postId} @${p.author.username}`).join(", ") || "none";
+      throw new McpError(
+        ErrorCode.InternalError,
+        `get_post could not find post ${wantedId} on ${url}. Articles seen: ${seen}. ` +
+          `The post may be deleted, protected, or the page did not finish rendering — retry, ` +
+          `but do not treat any other post on that page as this one.`
+      );
+    }
+
     const comments = await scrapeComments(page, url, { maxPosts: commentLimit });
 
     return {
