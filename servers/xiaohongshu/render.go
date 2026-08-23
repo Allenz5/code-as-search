@@ -106,7 +106,9 @@ func renderComment(b *strings.Builder, comment xiaohongshu.Comment, depth int) {
 	}
 }
 
-func renderFeedDetail(link string, detail *xiaohongshu.FeedDetailResponse) string {
+// attached 是随这段文字一起返回的图片张数。区分"有图但没带"和"图在下面"
+// 是给调用方看的：前者意味着还有没读到的东西，后者意味着已经全在手里了。
+func renderFeedDetail(link string, detail *xiaohongshu.FeedDetailResponse, attached int) string {
 	note := detail.Note
 	interact := note.InteractInfo
 
@@ -125,7 +127,11 @@ func renderFeedDetail(link string, detail *xiaohongshu.FeedDetailResponse) strin
 		fmt.Fprintf(&b, "%s\n", note.Desc)
 	}
 	if n := len(note.ImageList); n > 0 {
-		fmt.Fprintf(&b, "(%d images)\n", n)
+		if attached > 0 {
+			fmt.Fprintf(&b, "(%d images, %d attached below — the note's content is in them, not in the text above)\n", n, attached)
+		} else {
+			fmt.Fprintf(&b, "(%d images)\n", n)
+		}
 	}
 
 	// 页面只加载一屏评论；hasMore 是调用方判断"这是取样而非全部"的依据。

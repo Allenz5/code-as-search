@@ -467,11 +467,17 @@ func (s *AppServer) handleGetFeedDetail(ctx context.Context, args map[string]any
 		}
 	}
 
+	// 正文托不住这篇笔记时，内容在图里。把图带上，否则调用方只能照着标题猜。
+	var images []MCPContent
+	if !descCarriesContent(detail.Note.Desc) {
+		images = fetchNoteImages(ctx, detail.Note.ImageList)
+	}
+
 	return &MCPToolResult{
-		Content: []MCPContent{{
+		Content: append([]MCPContent{{
 			Type: "text",
-			Text: renderFeedDetail(noteURL(feedID, xsecToken), detail),
-		}},
+			Text: renderFeedDetail(noteURL(feedID, xsecToken), detail, len(images)),
+		}}, images...),
 	}
 }
 
