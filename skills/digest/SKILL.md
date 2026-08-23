@@ -57,11 +57,28 @@ so it should be generous. You are only ruling out what is plainly off-topic; any
 might be good goes to the next level. A title is weak evidence about a post's substance,
 which is exactly why the next level exists.
 
+Generous has to mean a number, because as an adjective it has not held: one run cut 344
+posts to 9 here, and of those 9 only 3 survived reading — a shortlist that small is not
+selective, it is a guess made from titles. **Aim to pass 20–30 posts.** If a platform
+returned a full feed and contributes nothing to that shortlist, that is a claim about the
+platform, not a fact — write down what made all of it off-topic.
+
+Reject here for one reason only: this is not about anything they care about. Never reject
+here because the claim looks thin, the number looks inflated, or the author looks like
+they are selling something. Those are all true things you cannot know from a title, and
+finding them out is the entire job of the level below — a post rejected up here for a
+reason that needed the comments is a post nobody ever read.
+
 **Read the survivors.** Dispatch `post-screener`, at most three at a time — each one
 drives a browser, X rate-limits concurrent sessions on one account, and Xiaohongshu
 launches a Chromium per request. Give each one the URL and what this person cares about.
 It reads the body and the comments and comes back with a judgement plus whatever it could
 not check for itself.
+
+Three at a time is a rate limit, not a time budget. Thirty posts is ten rounds and over an
+hour, and that is fine — this runs unattended with hours between runs, and nobody is
+waiting on it. Do not shrink the shortlist to finish sooner; a short run that missed things
+costs the user more than a long one they never watched.
 
 LinkedIn is the exception: there is no tool to read a single LinkedIn post, so its posts
 never go to `post-screener`. Judge them from the body text `get_feed` returns, and know
@@ -119,6 +136,17 @@ Report to the user: how many posts each feed returned, roughly what you dropped 
 what made it through, and anything that went unread because a platform was cooling down —
 that last one matters, because it is the difference between "nothing good today" and "I
 couldn't look".
+
+**Give the funnel as numbers, per platform**: pulled → already delivered → shortlisted →
+read → written. One table, every level, even the levels that dropped nothing. Every level
+except this reporting is invisible from outside: the run that cut 344 to 9 left no trace
+of having done it, so from the outside a badly over-rejecting screen and a genuinely thin
+day produce the same five rows. A stage that reports nothing cannot be corrected.
+
+When a post dies for a reason that is not about the post — a tool returned someone else's
+content, a note put its argument in images you could not read, a platform was cooling down
+— count it separately and name it. Those are your bugs, not the feed's bad day, and they
+are the ones worth fixing.
 
 If a platform failed outright — not logged in, server down — say which and keep going with
 the rest. Three feeds and an honest note beats no run at all.
