@@ -31,18 +31,31 @@ if [[ ! -x "$XHS_BIN" ]]; then
   exit 1
 fi
 
-pkill -f xiaohongshu-mcp >/dev/null 2>&1
-sleep 1
-( cd "$REPO/servers/xiaohongshu" && "$XHS_BIN" -headless=true ) >"$LOG_DIR/xhs.log" 2>&1 &
-XHS_PID=$!
-trap 'kill $XHS_PID 2>/dev/null; wait $XHS_PID 2>/dev/null' EXIT
+XHS_HEALTH="http://localhost:18060/health"
 
-for _ in $(seq 20); do
-  curl -sf http://localhost:18060/health >/dev/null 2>&1 && break
+# 18060 is a singleton and every Claude Code session on this machine talks to
+# the same one. `pkill` here was reaching into other people's work: a research
+# run reading a note lost its server mid-step, and this script's EXIT trap then
+# left the port empty behind it. Adopt a healthy server, and only ever kill what
+# this run started itself.
+if curl -sf "$XHS_HEALTH" >/dev/null 2>&1; then
+  log "xiaohongshu server already up — adopting it, leaving it running"
+else
+  # Unhealthy is not the same as absent. The per-run restart exists because a
+  # process left up for a day wedges, and that is the one case worth killing.
+  pkill -f xiaohongshu-mcp >/dev/null 2>&1
   sleep 1
-done
-if ! curl -sf http://localhost:18060/health >/dev/null 2>&1; then
-  log "xiaohongshu server did not come up — running without it"
+  ( cd "$REPO/servers/xiaohongshu" && "$XHS_BIN" -headless=true ) >"$LOG_DIR/xhs.log" 2>&1 &
+  XHS_PID=$!
+  trap 'kill $XHS_PID 2>/dev/null; wait $XHS_PID 2>/dev/null' EXIT
+
+  for _ in $(seq 20); do
+    curl -sf "$XHS_HEALTH" >/dev/null 2>&1 && break
+    sleep 1
+  done
+  if ! curl -sf "$XHS_HEALTH" >/dev/null 2>&1; then
+    log "xiaohongshu server did not come up — running without it"
+  fi
 fi
 
 log "starting digest run"
