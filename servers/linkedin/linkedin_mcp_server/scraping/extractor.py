@@ -114,6 +114,8 @@ _SORT_BY_MAP = {"date": "DD", "relevance": "R"}
 # LinkedIn accepts "F" (1st-degree), "S" (2nd-degree), "O" (3rd-degree and beyond).
 _NETWORK_TOKENS = ("F", "S", "O")
 
+_DATE_POSTED_TOKENS = ("past-24h", "past-week", "past-month")
+
 _DIALOG_SELECTOR = 'dialog[open], [role="dialog"]'
 _DIALOG_TEXTAREA_SELECTOR = '[role="dialog"] textarea, dialog textarea'
 
@@ -2849,12 +2851,15 @@ class LinkedInExtractor:
         location: str | None = None,
         network: list[str] | None = None,
         current_company: str | None = None,
+        geo_urn: str | None = None,
+        pages: int = 1,
     ) -> dict[str, Any]:
-        """Search for people and extract the results page.
+        """Search for people and extract the result pages.
 
         Args:
             keywords: Free-text query ("software engineer", "recruiter at Google").
-            location: Optional location filter ("New York", "Remote").
+            location: Rejected — see the error text. LinkedIn has no working
+                ``location`` parameter on people search.
             network: Optional connection-degree filter. Each element is one of
                 ``"F"`` (1st-degree), ``"S"`` (2nd-degree), ``"O"`` (3rd-degree
                 and beyond). Example: ``["F"]`` to only return 1st-degree
@@ -2866,10 +2871,29 @@ class LinkedInExtractor:
                 unfiltered result set. Look up a company's URN via
                 ``get_company_profile`` -- it is exposed under
                 ``references["about"]``.
+            geo_urn: Optional location filter, as LinkedIn's numeric geo id
+                (e.g. ``"90000084"`` for the San Francisco Bay Area). This is
+                the facet that actually filters by place.
+            pages: How many result pages to fetch, 1-10. LinkedIn serves ten
+                people per page and offers ten pages, so ``pages=5`` returns
+                about fifty people and 10 is the ceiling.
 
         Returns:
-            {url, sections: {name: text}}
+            {url, sections: {search_results: text}}
         """
+        # `location` was accepted here and silently did nothing: LinkedIn takes
+        # the key, ignores it, and returns worldwide results — so a Bay Area
+        # search looked filtered and was not. Same failure as passing a company
+        # name to currentCompany. Refusing loudly is the only honest option,
+        # because a caller cannot tell from the results that it was dropped.
+        if location:
+            raise FilterValidationError(
+                "search_people has no working `location` filter: LinkedIn accepts "
+                "the parameter, ignores it, and returns worldwide results that look "
+                "filtered. Pass `geo_urn` with LinkedIn's numeric geo id instead "
+                "(e.g. '90000084' for the San Francisco Bay Area)."
+            )
+
         if network is not None:
             invalid = [t for t in network if t not in _NETWORK_TOKENS]
             if invalid:
@@ -2886,15 +2910,99 @@ class LinkedInExtractor:
                 f'URN via get_company_profile -> references["about"].'
             )
 
+        if geo_urn and not re.fullmatch(r"[0-9]+", geo_urn):
+            raise FilterValidationError(
+                f"geo_urn must be a numeric LinkedIn geo id (e.g. '90000084' for "
+                f"the San Francisco Bay Area); got {geo_urn!r}."
+            )
+
+        if not 1 <= pages <= 10:
+            raise FilterValidationError(
+                f"pages must be between 1 and 10; got {pages}. LinkedIn's people "
+                f"search offers ten pages of ten results."
+            )
+
         params = f"keywords={quote_plus(keywords)}"
-        if location:
-            params += f"&location={quote_plus(location)}"
         if network:
             params += f"&network={_encode_list_facet(network)}"
         if current_company:
             params += f"&currentCompany={_encode_list_facet([current_company])}"
+        if geo_urn:
+            params += f"&geoUrn={_encode_list_facet([geo_urn])}"
 
-        url = f"https://www.linkedin.com/search/results/people/?{params}"
+        base_url = f"https://www.linkedin.com/search/results/people/?{params}"
+
+        texts: list[str] = []
+        page_refs: list[Reference] = []
+        seen_ref_urls: set[str] = set()
+        section_errors: dict[str, dict[str, Any]] = {}
+
+        for page_no in range(1, pages + 1):
+            url = base_url if page_no == 1 else f"{base_url}&page={page_no}"
+            extracted = await self.extract_page(url, section_name="search_results")
+
+            if extracted.text and extracted.text != _RATE_LIMITED_MSG:
+                texts.append(extracted.text)
+                for ref in extracted.references or []:
+                    # The same person can appear on two pages when LinkedIn
+                    # reorders between requests; the caller should see them once.
+                    if ref["url"] not in seen_ref_urls:
+                        seen_ref_urls.add(ref["url"])
+                        page_refs.append(ref)
+            elif extracted.error:
+                # A later page failing is not the search failing. Keep what came
+                # back, name the page that stopped it, and do not keep paging
+                # into what is probably a rate limit.
+                section_errors[f"search_results_page_{page_no}"] = extracted.error
+                break
+
+        sections: dict[str, str] = {}
+        references: dict[str, list[Reference]] = {}
+        if texts:
+            sections["search_results"] = "\n\n".join(texts)
+            if page_refs:
+                references["search_results"] = page_refs
+
+        result: dict[str, Any] = {
+            "url": base_url,
+            "sections": sections,
+        }
+        if references:
+            result["references"] = references
+        if section_errors:
+            result["section_errors"] = section_errors
+        return result
+
+    async def search_posts(
+        self,
+        keywords: str,
+        date_posted: str | None = None,
+    ) -> dict[str, Any]:
+        """Search posts across LinkedIn by keyword.
+
+        The content tab of LinkedIn search, which the people and company
+        searches here already had but posts did not. Unlike people search this
+        page scrolls rather than paginating, so one call returns one screen.
+
+        Args:
+            keywords: Free-text query.
+            date_posted: Optional recency filter, one of "past-24h",
+                "past-week", "past-month".
+
+        Returns:
+            {url, sections: {search_results: text}}
+        """
+        if date_posted and date_posted not in _DATE_POSTED_TOKENS:
+            raise FilterValidationError(
+                f"Invalid date_posted {date_posted!r}; expected one of "
+                f"{list(_DATE_POSTED_TOKENS)!r}"
+            )
+
+        params = f"keywords={quote_plus(keywords)}"
+        if date_posted:
+            params += f"&datePosted={_encode_list_facet([date_posted])}"
+
+        url = f"https://www.linkedin.com/search/results/content/?{params}"
         extracted = await self.extract_page(url, section_name="search_results")
 
         sections: dict[str, str] = {}

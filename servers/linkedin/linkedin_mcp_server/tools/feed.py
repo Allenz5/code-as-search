@@ -12,13 +12,17 @@ import logging
 from typing import Annotated, Any
 
 from fastmcp import Context, FastMCP
+from fastmcp.exceptions import ToolError
 from pydantic import Field
 
 from linkedin_mcp_server.config.schema import DEFAULT_TOOL_TIMEOUT_SECONDS
 from linkedin_mcp_server.core.exceptions import AuthenticationError
 from linkedin_mcp_server.dependencies import get_ready_extractor, handle_auth_error
 from linkedin_mcp_server.error_handler import raise_tool_error
-from linkedin_mcp_server.scraping.extractor import _RATE_LIMITED_MSG
+from linkedin_mcp_server.scraping.extractor import (
+    FilterValidationError,
+    _RATE_LIMITED_MSG,
+)
 from linkedin_mcp_server.scraping.link_metadata import Reference
 
 logger = logging.getLogger(__name__)
@@ -108,3 +112,71 @@ def register_feed_tools(
                 raise_tool_error(relogin_exc, "get_feed")
         except Exception as e:
             raise_tool_error(e, "get_feed")
+
+    @mcp.tool(
+        timeout=tool_timeout,
+        title="Search Posts",
+        annotations={"readOnlyHint": True, "openWorldHint": True},
+        tags={"feed", "scraping"},
+        exclude_args=["extractor"],
+    )
+    async def search_posts(
+        keywords: str,
+        ctx: Context,
+        date_posted: str | None = None,
+        extractor: Any | None = None,
+    ) -> dict[str, Any]:
+        """
+        Search posts across LinkedIn by keyword.
+
+        The content tab of LinkedIn search. People and companies were already
+        searchable here; posts were not, which left the home feed and a named
+        company's page as the only ways to reach a post — both of which are
+        about who you already follow rather than what was said.
+
+        Unlike people search this page scrolls rather than paginating, so one
+        call returns roughly one screen of results.
+
+        Args:
+            keywords: Free-text query (e.g., "agent evals", "inference cost").
+            ctx: FastMCP context for progress reporting
+            date_posted: Optional recency filter, one of "past-24h",
+                "past-week", "past-month". Omit for any time.
+
+        Returns:
+            Dict with url, sections (search_results -> raw text), and optional
+            references — including /in/ paths for the post authors, which is
+            what makes this usable for finding people rather than reading.
+        """
+        try:
+            extractor = extractor or await get_ready_extractor(
+                ctx, tool_name="search_posts"
+            )
+            logger.info(
+                "Searching posts: keywords='%s', date_posted=%s", keywords, date_posted
+            )
+
+            await ctx.report_progress(
+                progress=0, total=100, message="Starting post search"
+            )
+
+            try:
+                result = await extractor.search_posts(
+                    keywords, date_posted=date_posted
+                )
+            except FilterValidationError as e:
+                raise ToolError(str(e)) from e
+
+            await ctx.report_progress(progress=100, total=100, message="Complete")
+
+            return result
+
+        except ToolError:
+            raise
+        except AuthenticationError as e:
+            try:
+                await handle_auth_error(e, ctx)
+            except Exception as relogin_exc:
+                raise_tool_error(relogin_exc, "search_posts")
+        except Exception as e:
+            raise_tool_error(e, "search_posts")

@@ -114,6 +114,8 @@ def register_person_tools(
         location: str | None = None,
         network: list[str] | None = None,
         current_company: str | None = None,
+        geo_urn: str | None = None,
+        pages: Annotated[int, Field(ge=1, le=10)] = 1,
         extractor: Any | None = None,
     ) -> dict[str, Any]:
         """
@@ -122,7 +124,9 @@ def register_person_tools(
         Args:
             keywords: Search keywords (e.g., "software engineer", "recruiter at Google")
             ctx: FastMCP context for progress reporting
-            location: Optional location filter (e.g., "New York", "Remote")
+            location: Does not work and is rejected. LinkedIn accepts this
+                parameter on people search, ignores it, and returns worldwide
+                results that look filtered. Use geo_urn.
             network: Optional connection-degree filter. Each element is one of
                 "F" (1st-degree), "S" (2nd-degree), "O" (3rd-degree and beyond).
                 Example: ["F"] to only return 1st-degree connections.
@@ -134,6 +138,12 @@ def register_person_tools(
                 exposed under references["about"]. For company-wide employee
                 demographics (location/education/function breakdown) plus a
                 slug-based lookup, use get_company_employees instead.
+            geo_urn: Optional location filter, as LinkedIn's numeric geo id
+                (e.g. "90000084" for the San Francisco Bay Area). This is the
+                facet that actually filters by place.
+            pages: How many result pages to fetch, 1-10 (default 1). LinkedIn
+                serves ten people per page, so pages=5 returns about fifty.
+                Each extra page is another page load; ask for what you will read.
 
         Returns:
             Dict with url, sections (name -> raw text), and optional references.
@@ -144,11 +154,13 @@ def register_person_tools(
                 ctx, tool_name="search_people"
             )
             logger.info(
-                "Searching people: keywords='%s', location='%s', network=%s, current_company='%s'",
+                "Searching people: keywords='%s', geo_urn='%s', network=%s, "
+                "current_company='%s', pages=%d",
                 keywords,
-                location,
+                geo_urn,
                 network,
                 current_company,
+                pages,
             )
 
             await ctx.report_progress(
@@ -161,6 +173,8 @@ def register_person_tools(
                     location,
                     network=network,
                     current_company=current_company,
+                    geo_urn=geo_urn,
+                    pages=pages,
                 )
             except FilterValidationError as e:
                 # Validation messages carry actionable detail; surface
