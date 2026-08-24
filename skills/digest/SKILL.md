@@ -157,6 +157,20 @@ thing in `interests.md` it hits and what in the post makes it worth opening. "Re
 AI agents" is not a reason. `Verified` gets what you actually established — a specific
 fact, not "could not verify" as a placeholder.
 
+**When the post has a title, `Title` is that title, translated.** Reddit and Xiaohongshu
+hand you one. Translate it as literally as Chinese will bear — same claim, same emphasis,
+no angle of your own bolted on after a colon. The user has to be able to open the link and
+recognise the row, and a title you rewrote cannot do that.
+
+**When it has none — X, LinkedIn — write one.** 「60MB 跑的自建 LLM：真正的价值在顶楼」 is the
+failure to avoid: the half before the colon is fine, the half after it tells the reader
+nothing. "真正的价值在…"、"值得一看"、"颠覆了…" are placeholders where something specific
+should be. Whatever else you found interesting goes in `Summary` and `Why`.
+
+**`Summary` is what the post says, in one or two plain sentences.** Short enough to skim,
+concrete enough to skip the row on. It is not a shorter `Why`: `Summary` says what the post
+is about, `Why` says why it earned a slot.
+
 **`Score` runs 0-100.** The width is the point: it exists so that things which differ can be
 scored differently. When a third of the list lands on the same number the score has stopped
 carrying information, and the list loses the ordering that makes it scannable.
