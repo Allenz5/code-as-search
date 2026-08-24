@@ -1,24 +1,28 @@
-"""MCP server for code-as-search.
+"""MCP server for Firecrawl: search the web, scrape a page, drive it.
 
-Two profiles over one codebase. The director gets search and memory; the explorer
-gets scrape and interact. Page bodies are reachable only from the explorer, which
-is what keeps them out of the director's context.
+Two profiles over one codebase. The director gets search; the explorer gets scrape
+and interact. Page bodies are reachable only from the explorer, which is what keeps
+them out of the director's context.
 
-    python -m server --profile director
-    python -m server --profile explorer
+Credits and scraped pages are filed against the active research run when there is
+one (`mcp_servers.runs`); a search with no run in progress — which is how the digest
+uses this server — simply goes uncounted.
+
+    python -m mcp_servers.websearch_server --profile director
+    python -m mcp_servers.websearch_server --profile explorer
 """
 
 from __future__ import annotations
 
 import argparse
 import re
-from typing import Any
 
 from mcp.server import MCPServer
 
-from . import memory, runs, sessions
+from .. import runs
+from ..lock import guard
+from . import sessions
 from .firecrawl import Firecrawl, Saturated
-from .lock import guard
 
 _client: Firecrawl | None = None
 
@@ -34,16 +38,6 @@ def client() -> Firecrawl:
 
 
 def register_director(mcp: MCPServer) -> None:
-    @mcp.tool()
-    def research_start(objective: str) -> str:
-        """Begin a research run. Creates its directory and makes it the active run.
-
-        Args:
-            objective: What the research is trying to find out.
-        """
-        run_id = runs.new_run(objective)
-        return f"run {run_id} started\ndirectory: {runs.run_dir(run_id)}"
-
     @mcp.tool()
     def search(
         query: str,
@@ -85,34 +79,6 @@ def register_director(mcp: MCPServer) -> None:
             if r.get("description"):
                 lines.append(f"   {r['description']}")
         return "\n".join(lines)
-
-    @mcp.tool()
-    def memory_append(records: list[dict[str, Any]]) -> str:
-        """Write to working memory. Appends records; never rewrites.
-
-        Each record needs a type `t`:
-          {"t": "question", "text": "..."}                     -> new question
-          {"t": "question", "id": "q1", "status": "resolved", "answer": "..."}
-          {"t": "finding", "q": "q1", "text": "...", "url": "https://..."}
-          {"t": "note", "text": "..."}
-        Omit `id` to create; pass `id` with only the changed fields to update.
-        IDs are assigned here and returned — never invent one.
-        """
-        ids = memory.append(runs.memory_path(), records)
-        return "appended: " + ", ".join(ids)
-
-    @mcp.tool()
-    def memory_read(question_id: str | None = None) -> str:
-        """Read working memory as Markdown.
-
-        Args:
-            question_id: Return only this question and its findings. Omit for everything.
-        """
-        return memory.render(
-            runs.load_meta(),
-            memory.read_records(runs.memory_path()),
-            question_id,
-        )
 
 
 # ---------------------------------------------------------------- explorer
@@ -216,7 +182,7 @@ def build(profile: str) -> MCPServer:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(prog="server")
+    parser = argparse.ArgumentParser(prog="websearch_server")
     parser.add_argument("--profile", choices=("director", "explorer"), required=True)
     build(parser.parse_args().profile).run("stdio")
 

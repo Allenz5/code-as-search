@@ -7,7 +7,7 @@ import time
 
 import httpx
 
-from .runs import ROOT
+from ..runs import ROOT
 
 BASE = "https://api.firecrawl.dev/v2"
 

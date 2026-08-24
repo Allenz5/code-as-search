@@ -30,6 +30,8 @@ agents are therefore checked in as `agents/*.md.in` templates and rendered into 
 
 ```
 /research <what you want to find out>
+/research_list                          the last 10 runs, and how far each got
+/research_resume <run id> <feedback>    carry one on, keeping what it already knows
 ```
 
 It is question-driven: it decomposes an objective into questions, searches, reads pages through
@@ -46,7 +48,9 @@ report.md       the answer
 ```
 
 `memory.jsonl` is the research state, not the context window, so a run survives compaction,
-interruption and restarts. To resume an earlier run, point `search/.active` at its id.
+interruption and restarts — which is what makes `/research_resume` possible. It reopens a run
+in place: resolved questions are not researched again, the feedback becomes the new questions,
+and the previous `report.md` is kept as `report-1.md` rather than overwritten.
 
 ### Why raw content cannot reach the main loop
 
@@ -55,7 +59,7 @@ reads them.
 
 | server | director has | explorer has |
 |---|---|---|
-| websearch | `research_start` `search` `memory_*` | `scrape` `interact` `interact_stop` |
+| websearch | `research_*` `search` `memory_*` | `scrape` `interact` `interact_stop` |
 | reddit | feeds, `search`, subreddit info | `get_post` `get_post_comments` |
 | x | timeline, `search`, profiles, trending | `get_post` |
 | xiaohongshu | `list_feeds` `search`, profiles | `get_post` |
@@ -144,7 +148,8 @@ it is just another feed.
 
 | | `servers/` | runtime | transport | login |
 |---|---|---|---|---|
-| websearch / explorer | `mcp_servers/firecrawl_server` | Python | stdio | Firecrawl API key |
+| websearch / explorer | `mcp_servers/websearch_server` | Python | stdio | Firecrawl API key |
+| research | `mcp_servers/research_server` | Python | stdio | none |
 | reddit | `mcp_servers/reddit_server` | Python | stdio | none |
 | x | `x/` | Node | stdio | manual, visible browser |
 | linkedin | `linkedin/` | Python (uv) | stdio | `--login --no-headless` |

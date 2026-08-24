@@ -1,4 +1,10 @@
-"""Run directories, the active-run pointer, and credit accounting."""
+"""Run directories, the active-run pointer, and credit accounting.
+
+Shared state, deliberately at package level rather than inside either server:
+`research_server` creates and reads runs, `websearch_server` charges credits and
+files pages against the active one. Two processes write here at once, which is
+what `lock.py` is for.
+"""
 
 from __future__ import annotations
 
@@ -9,7 +15,7 @@ from pathlib import Path
 
 from .lock import guard, write_atomic
 
-ROOT = Path(__file__).resolve().parents[3]  # repo root: …/servers/mcp_servers/firecrawl_server/runs.py
+ROOT = Path(__file__).resolve().parents[2]  # repo root: …/servers/mcp_servers/runs.py
 SEARCH = ROOT / "search"
 ACTIVE = SEARCH / ".active"
 
@@ -52,6 +58,25 @@ def set_active(run_id: str) -> None:
     ACTIVE.write_text(run_id)
 
 
+def recent(limit: int = 10) -> list[dict]:
+    """The most recently created runs, newest first."""
+    metas = [load_meta(d.name) for d in SEARCH.glob("*") if (d / "run.json").is_file()]
+    metas.sort(key=lambda m: m["created"], reverse=True)
+    return metas[:limit]
+
+
+def archive_report(run_id: str) -> str | None:
+    """Move a run's report aside, so continuing the run cannot overwrite it."""
+    report = run_dir(run_id) / "report.md"
+    if not report.exists():
+        return None
+    n = 1
+    while (kept := run_dir(run_id) / f"report-{n}.md").exists():
+        n += 1
+    report.rename(kept)
+    return kept.name
+
+
 def run_dir(run_id: str | None = None) -> Path:
     return SEARCH / (run_id or active())
 
@@ -69,6 +94,8 @@ def save_meta(run_id: str, meta: dict) -> None:
 
 
 def spend(credits: int, run_id: str | None = None) -> str:
+    if run_id is None and not ACTIVE.exists():
+        return "not counted — no active run"
     run_id = run_id or active()
     with guard(run_dir(run_id) / "run.json"):  # parallel explorers charge the same run
         meta = load_meta(run_id)

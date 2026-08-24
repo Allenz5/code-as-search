@@ -64,7 +64,10 @@ reg() {
 
 reg websearch websearch \
   -e "PYTHONPATH=$ROOT/servers" \
-  -- "$ROOT/.venv/bin/python" -m mcp_servers.firecrawl_server --profile director
+  -- "$ROOT/.venv/bin/python" -m mcp_servers.websearch_server --profile director
+reg research research \
+  -e "PYTHONPATH=$ROOT/servers" \
+  -- "$ROOT/.venv/bin/python" -m mcp_servers.research_server
 reg reddit reddit \
   -e "PYTHONPATH=$ROOT/servers" \
   -- "$ROOT/.venv/bin/python" -m mcp_servers.reddit_server --profile director
@@ -75,7 +78,7 @@ reg linkedin linkedin \
   -- "$ROOT/servers/linkedin/.venv/bin/linkedin-mcp-server" --transport stdio --log-level ERROR
 claude mcp remove --scope user xiaohongshu >/dev/null 2>&1 || true
 claude mcp add --scope user --transport http xiaohongshu http://localhost:18060/mcp >/dev/null
-echo "    websearch reddit x linkedin xiaohongshu"
+echo "    websearch research reddit x linkedin xiaohongshu"
 
 echo "==> rendering the launchd plist"
 sed -e "s|@@TOOLKIT_ROOT@@|$ROOT|g" -e "s|@@HOME@@|$HOME|g" -e "s|@@USER@@|$(id -un)|g" \

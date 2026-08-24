@@ -18,8 +18,8 @@ import threading
 import time
 from pathlib import Path
 
-from .lock import guard, write_atomic
-from .runs import SEARCH
+from ..lock import guard, write_atomic
+from ..runs import SEARCH
 
 REGISTRY = SEARCH / ".sessions.json"
 MAX_AGE = 120.0

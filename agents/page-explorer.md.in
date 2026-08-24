@@ -7,7 +7,7 @@ mcpServers:
   - explorer:
       type: stdio
       command: @@TOOLKIT_ROOT@@/.venv/bin/python
-      args: ["-m", "mcp_servers.firecrawl_server", "--profile", "explorer"]
+      args: ["-m", "mcp_servers.websearch_server", "--profile", "explorer"]
       env:
         PYTHONPATH: @@TOOLKIT_ROOT@@/servers
 ---
