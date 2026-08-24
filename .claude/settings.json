@@ -8,6 +8,7 @@
       "Agent(post-screener)",
       "Agent(pdf-reader)",
       "Agent(social-explorer)",
+      "Agent(profile-screener)",
 
       "mcp__x__scrape_timeline",
       "mcp__reddit__get_subreddit_hot_posts",
@@ -17,6 +18,16 @@
       "mcp__linkedin__get_person_profile",
       "mcp__linkedin__get_company_profile",
       "mcp__linkedin__search_companies",
+
+      "mcp__linkedin__search_people",
+      "mcp__linkedin__search_posts",
+      "mcp__linkedin__get_company_employees",
+      "mcp__linkedin__get_company_posts",
+      "mcp__linkedin__get_sidebar_profiles",
+      "mcp__linkedin__get_my_profile",
+
+      "Read(~/.claude/skills/linkedin_scout/**)",
+      "Edit(~/.claude/skills/linkedin_scout/**)",
 
       "mcp__x__get_post",
       "mcp__x__wait",

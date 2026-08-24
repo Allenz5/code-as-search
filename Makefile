@@ -49,15 +49,20 @@ uninstall: unschedule
 # Run /digest three times a day. Needs `make install` first (it renders the plist),
 # and a repo that is NOT under ~/Desktop, ~/Documents or ~/Downloads — launchd is
 # refused entry to those by TCC.
-schedule: build/com.claude-toolkit.digest.plist
-	cp build/com.claude-toolkit.digest.plist $(HOME)/Library/LaunchAgents/
-	-launchctl bootout gui/$(shell id -u)/com.claude-toolkit.digest 2>/dev/null
-	launchctl bootstrap gui/$(shell id -u) $(HOME)/Library/LaunchAgents/com.claude-toolkit.digest.plist
-	@echo "Scheduled. Fire one now with: launchctl kickstart -k gui/$(shell id -u)/com.claude-toolkit.digest"
+schedule:
+	@for job in digest scout; do \
+	  cp build/com.claude-toolkit.$$job.plist $(HOME)/Library/LaunchAgents/; \
+	  launchctl bootout gui/$(shell id -u)/com.claude-toolkit.$$job 2>/dev/null || true; \
+	  launchctl bootstrap gui/$(shell id -u) $(HOME)/Library/LaunchAgents/com.claude-toolkit.$$job.plist; \
+	  echo "    scheduled com.claude-toolkit.$$job"; \
+	done
+	@echo "Fire one now with: launchctl kickstart -k gui/$(shell id -u)/com.claude-toolkit.digest"
 
 unschedule:
-	-@launchctl bootout gui/$(shell id -u)/com.claude-toolkit.digest 2>/dev/null || true
-	-@rm -f $(HOME)/Library/LaunchAgents/com.claude-toolkit.digest.plist
+	@for job in digest scout; do \
+	  launchctl bootout gui/$(shell id -u)/com.claude-toolkit.$$job 2>/dev/null || true; \
+	  rm -f $(HOME)/Library/LaunchAgents/com.claude-toolkit.$$job.plist; \
+	done
 
 check:
 	@claude mcp list 2>&1 | grep -E 'websearch|reddit|^x:|linkedin|xiaohongshu' || echo "no servers found"

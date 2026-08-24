@@ -81,9 +81,11 @@ claude mcp add --scope user --transport http xiaohongshu http://localhost:18060/
 echo "    websearch research reddit x linkedin xiaohongshu"
 
 echo "==> rendering the launchd plist"
-sed -e "s|@@TOOLKIT_ROOT@@|$ROOT|g" -e "s|@@HOME@@|$HOME|g" -e "s|@@USER@@|$(id -un)|g" \
-  "$ROOT/scripts/digest.plist.in" > "$ROOT/build/com.claude-toolkit.digest.plist"
-echo "    build/com.claude-toolkit.digest.plist  (run 'make schedule' to load it)"
+for job in digest scout; do
+  sed -e "s|@@TOOLKIT_ROOT@@|$ROOT|g" -e "s|@@HOME@@|$HOME|g" -e "s|@@USER@@|$(id -un)|g" \
+    "$ROOT/scripts/$job.plist.in" > "$ROOT/build/com.claude-toolkit.$job.plist"
+  echo "    build/com.claude-toolkit.$job.plist  (run 'make schedule' to load it)"
+done
 
 # The old skills-dir plugin symlink would double-register everything.
 if [ -L "$SKILLS/claude-toolkit" ]; then
@@ -97,6 +99,7 @@ Installed. Restart Claude Code, then:
 
   /research <question>     long-horizon web research
   /digest                  screen the four social feeds into Notion
+  /linkedin_scout          find Bay Area AI builders worth reaching out to
 
 Isolation check — the main loop should NOT see any of these:
   mcp__explorer__scrape, mcp__*__get_post

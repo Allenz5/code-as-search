@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  This is a template. `make install` renders it to build/; `make schedule` loads it.
+  Fire now: launchctl kickstart -k gui/$(id -u)/com.claude-toolkit.scout
+  Remove:   make unschedule
+
+  Once a day, and deliberately not more. This job is far heavier on one LinkedIn
+  account than the digest is — ten searches three pages deep plus twenty profile
+  reads, against an account that also serves three digest runs a day.
+
+  10:31 sits between the 08:07 and 12:23 digests with room on both sides. The
+  runner enforces a 105-minute hard kill so a hung run cannot walk into 12:23,
+  and refuses to start at all if a digest is still going. Two sessions scraping
+  one account is the failure the whole design is arranged to avoid.
+
+  Same environment rules as the digest: USER and LOGNAME are not decoration,
+  and the repo must not live under ~/Desktop, ~/Documents or ~/Downloads.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.claude-toolkit.scout</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>@@TOOLKIT_ROOT@@/scripts/run-scout.sh</string>
+    </array>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>USER</key>
+        <string>@@USER@@</string>
+        <key>LOGNAME</key>
+        <string>@@USER@@</string>
+        <key>HOME</key>
+        <string>@@HOME@@</string>
+        <key>PATH</key>
+        <string>@@HOME@@/.local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    </dict>
+
+    <!-- Off the hour for the same reason the digest is: a request stream that
+         lands exactly at :00 is the easiest kind of machine rhythm to notice. -->
+    <key>StartCalendarInterval</key>
+    <array>
+        <dict>
+            <key>Hour</key><integer>10</integer>
+            <key>Minute</key><integer>31</integer>
+        </dict>
+    </array>
+
+    <key>StandardOutPath</key>
+    <string>@@HOME@@/.local/state/scout/scout.log</string>
+    <key>StandardErrorPath</key>
+    <string>@@HOME@@/.local/state/scout/scout.err</string>
+
+    <key>RunAtLoad</key>
+    <false/>
+    <key>ProcessType</key>
+    <string>Background</string>
+</dict>
+</plist>
