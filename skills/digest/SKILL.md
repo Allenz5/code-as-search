@@ -22,10 +22,18 @@ just another feed.
 
 1. Read `skills/digest/interests.md`.
 2. Fold in feedback: query the Notion database for rows where `Rating` is set and
-   `Learned` is unchecked. Each one is the user telling you that you got it right or
-   wrong. Append them to the examples section of `interests.md`, rewrite the prose when
-   the misses share a cause rather than being one-offs, and check `Learned` on the rows
-   you consumed. Real feedback should displace the seed examples over time.
+   `Learned` is unchecked. Check `Learned` on every row you consume, and let real feedback
+   displace the seed examples over time.
+
+   The three ratings do not say the same kind of thing. **👍 有用** and **👎 没用** are
+   about subject — this belongs on the list, this does not. Append those to the examples
+   section of `interests.md`, and rewrite the prose when several misses share a cause
+   rather than being one-offs. **😐 一般** is not a weak 👎. It says the post was on topic
+   and still did not earn its slot, which is a claim about the bar, not about what the
+   user cares about. One is noise; several in a run means the standard is too low — raise
+   it, and say so in that run's report. Do not turn 一般 rows into `interests.md` examples:
+   nothing about the subject was wrong, and filing them as negative examples would teach
+   the screen to drop a topic the user still wants.
 
 Do this before pulling feeds — this run should be judged by the updated standard.
 
@@ -40,10 +48,18 @@ uses an anonymous client, so there is no personalised front page. Use the subred
 
 | | tool | how much it gives you |
 |---|---|---|
-| x | `scrape_timeline(type="following", maxPosts=100)` | 100, or the whole following feed if shorter |
+| x following | `scrape_timeline(type="following", maxPosts=70)` | 70, or the whole following feed if shorter |
+| x for you | `scrape_timeline(type="for-you", maxPosts=30)` | 30 |
 | reddit | `get_subreddit_hot_posts(subreddit, limit=15)` per subreddit | 15 × however many subs are listed |
-| linkedin | `get_feed(num_posts=50)` | 50 — the tool's schema caps it there |
+| linkedin | `get_feed(num_posts=100)` | 100, or as deep as the feed loads before the scroll gives up |
 | xiaohongshu | `list_feeds()` | whatever the first screen hydrates, around 35. No parameter, no scrolling. |
+
+X is two feeds, not one. Following is what this person chose; For You is what X chose for
+them, and the two fail in opposite directions — following goes stale as the same accounts
+repeat, for-you drifts toward whatever is popular. 70/30 is deliberate: the recommended
+feed is worth a look and is not worth being outnumbered by. Take them in two calls, and
+when a post arrives in both, keep it as a following post and count the overlap — that
+number is how much For You is actually adding.
 
 Ask for the full amount every run. Pulling less to save time is a false economy: the cheap
 level is the one that costs nothing, and anything you never pull cannot be screened.
@@ -68,6 +84,33 @@ here because the claim looks thin, the number looks inflated, or the author look
 they are selling something. Those are all true things you cannot know from a title, and
 finding them out is the entire job of the level below — a post rejected up here for a
 reason that needed the comments is a post nobody ever read.
+
+**Sample what you rejected.** The screen throws away around nine posts in ten and nothing
+downstream ever looks at them again. That leaves one half of the question permanently
+unmeasured: the read level tells you how much of what passed was worth passing, and no
+level tells you how much of what was cut should have survived. The `Rating` loop cannot
+close the gap either — it only sees rows that got written, so it can say "you should not
+have sent me this" and can never say "you missed this". Every correction this skill
+receives is about a false positive.
+
+So measure the other half. Concatenate the rejected posts in the order they came out of
+the feeds — X following, X for you, Reddit, Xiaohongshu, LinkedIn — number them, take every
+⌊total ÷ 10⌋-th one. That is ten posts, spread across the platforms in proportion to what
+each contributed to the pile. Take them mechanically. The moment you pick the rejects that
+look most promising, the sample is measuring your judgement a second time instead of
+testing it, and it will report whatever you already believe. If a drawn post is already in
+the database, skip it and take the next one along.
+
+Those ten go to the read level exactly like the shortlist, judged by the same standard,
+and they do not get a gentler one for being an experiment. One that turns out to be worth
+writing gets written — it is a good post, and holding it back to keep the sample clean
+would charge the user for the test.
+
+One run proves nothing: ten posts drawn from three hundred will miss a 3% miss rate more
+often than they find it. This is worth doing because it accumulates — thirty posts a day,
+each with the screen's reason for cutting it still attached, is a record that eventually
+says whether the screen has a blind spot and what shape it is. A single run finding zero
+misses is not evidence that there are none, and must not be reported as if it were.
 
 **Read the survivors.** Dispatch `post-screener`, at most three at a time — each one
 drives a browser, X rate-limits concurrent sessions on one account, and Xiaohongshu
@@ -138,7 +181,11 @@ that last one matters, because it is the difference between "nothing good today"
 couldn't look".
 
 **Give the funnel as numbers, per platform**: pulled → already delivered → shortlisted →
-read → written. One table, every level, even the levels that dropped nothing. Every level
+read → written. **X gets two rows, following and for you, at every level** — one row would
+hide the only thing the split was made to measure, which is whether the recommended feed
+earns the thirty posts it costs. Report the overlap between them on its own line. Then the control sample on its own line: how many were drawn, how many
+were read, how many would have made it, and for each of those the reason the screen cut it
+— the reason is the whole point, because it is the only thing that says what to change. One table, every level, even the levels that dropped nothing. Every level
 except this reporting is invisible from outside: the run that cut 344 to 9 left no trace
 of having done it, so from the outside a badly over-rejecting screen and a genuinely thin
 day produce the same five rows. A stage that reports nothing cannot be corrected.

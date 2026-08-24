@@ -2,6 +2,7 @@
   "permissions": {
     "allow": [
       "mcp__websearch",
+      "mcp__research",
       "mcp__explorer",
       "Agent(page-explorer)",
       "Agent(post-screener)",
@@ -22,6 +23,9 @@
       "mcp__reddit__get_post",
       "mcp__xiaohongshu__get_post",
       "mcp__xiaohongshu__wait",
+
+      "Read(~/.claude/skills/digest/**)",
+      "Edit(~/.claude/skills/digest/interests.md)",
 
       "mcp__claude_ai_Notion__notion-fetch",
       "mcp__claude_ai_Notion__notion-query-data-sources",
