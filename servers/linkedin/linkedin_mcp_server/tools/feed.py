@@ -161,9 +161,7 @@ def register_feed_tools(
             )
 
             try:
-                result = await extractor.search_posts(
-                    keywords, date_posted=date_posted
-                )
+                result = await extractor.search_posts(keywords, date_posted=date_posted)
             except FilterValidationError as e:
                 raise ToolError(str(e)) from e
 

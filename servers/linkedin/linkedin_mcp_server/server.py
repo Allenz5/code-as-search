@@ -22,6 +22,7 @@ from linkedin_mcp_server.error_handler import raise_tool_error
 from linkedin_mcp_server.sequential_tool_middleware import (
     SequentialToolExecutionMiddleware,
 )
+from linkedin_mcp_server.throttle import ThrottleMiddleware
 from linkedin_mcp_server.tools.company import register_company_tools
 from linkedin_mcp_server.tools.feed import register_feed_tools
 from linkedin_mcp_server.tools.job import register_job_tools
@@ -54,7 +55,11 @@ def create_mcp_server(*, tool_timeout: float = DEFAULT_TOOL_TIMEOUT_SECONDS) -> 
         lifespan=browser_lifespan,
         mask_error_details=True,
     )
+    # Order matters. The lock goes outside so only one call touches the browser;
+    # the throttle goes inside it so the gap it enforces is between calls, not
+    # something queued callers can all wait out at once and then burst through.
     mcp.add_middleware(SequentialToolExecutionMiddleware())
+    mcp.add_middleware(ThrottleMiddleware())
 
     # Register all tools
     register_person_tools(mcp, tool_timeout=tool_timeout)
