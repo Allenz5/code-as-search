@@ -38,7 +38,7 @@ def register_feed_tools(
     )
     async def get_feed(
         ctx: Context,
-        num_posts: Annotated[int, Field(ge=1, le=50)] = 10,
+        num_posts: Annotated[int, Field(ge=1, le=100)] = 10,
         extractor: Any | None = None,
     ) -> dict[str, Any]:
         """
@@ -46,7 +46,7 @@ def register_feed_tools(
 
         Args:
             ctx: FastMCP context for progress reporting
-            num_posts: Number of posts to fetch (1-50, default 10).
+            num_posts: Number of posts to fetch (1-100, default 10).
                        Posts are loaded in batches of ~5 as the page scrolls,
                        so the actual count may slightly exceed the target.
 

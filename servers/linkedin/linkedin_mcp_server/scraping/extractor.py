@@ -1015,7 +1015,11 @@ class LinkedInExtractor:
 
         # The feed has its own scroll container — window.scrollTo is a no-op.
         # mouse.wheel over the viewport center triggers the real scroll.
-        _MAX_SCROLLS = 12
+        # 12 wheels at roughly four posts each topped out around 45 — which is why
+        # a request for 50 came back with 44 and looked like a thin feed rather than
+        # an exhausted budget. The stop that should bind is _MAX_STALE (the feed
+        # genuinely stopped loading), not this one.
+        _MAX_SCROLLS = 30
         _MAX_STALE = 3
         _BATCH_WAIT = 6.0
         _WHEEL_DELTA = 2000
