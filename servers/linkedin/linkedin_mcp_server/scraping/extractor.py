@@ -116,6 +116,14 @@ _NETWORK_TOKENS = ("F", "S", "O")
 
 _DATE_POSTED_TOKENS = ("past-24h", "past-week", "past-month")
 
+# Content search is an infinite-scroll feed, so it gets the feed's treatment,
+# not the generic page defaults (5 scrolls, 0.5s) that are tuned for pages which
+# actually finish loading. 25 x 2s stays well inside the 180s tool timeout.
+_CONTENT_SCROLLS = 25
+_CONTENT_SCROLL_WAIT = 2.0
+_CONTENT_WHEEL_DELTA = 2000
+_CONTENT_MAX_STALE = 3
+
 _DIALOG_SELECTOR = 'dialog[open], [role="dialog"]'
 _DIALOG_TEXTAREA_SELECTOR = '[role="dialog"] textarea, dialog textarea'
 
@@ -920,6 +928,51 @@ class LinkedInExtractor:
             )
             await asyncio.sleep(pause_time)
 
+    async def _scroll_content_search(self, max_scrolls: int | None = None) -> None:
+        """Scroll a content-search results page until it stops yielding authors.
+
+        Modelled on the feed scroller rather than the generic one: mouse.wheel
+        over the viewport centre, because this list lives in LinkedIn's own
+        scroll container. Progress is measured by how many author profile links
+        are on the page, so the loop stops when the feed is genuinely dry rather
+        than after a fixed count — a fixed count either truncates a rich query
+        or wastes time on a thin one.
+        """
+        limit = max_scrolls if max_scrolls is not None else _CONTENT_SCROLLS
+        viewport = self._page.viewport_size or {"width": 1280, "height": 720}
+        cx, cy = viewport["width"] // 2, viewport["height"] // 2
+        await self._page.mouse.move(cx, cy)
+
+        async def author_count() -> int:
+            try:
+                return await self._page.evaluate(
+                    """() => {
+                        const main = document.querySelector('main');
+                        return main ? main.querySelectorAll('a[href*="/in/"]').length : 0;
+                    }"""
+                )
+            except Exception:
+                return 0
+
+        stale = 0
+        seen = await author_count()
+        for i in range(limit):
+            await self._page.mouse.wheel(0, _CONTENT_WHEEL_DELTA)
+            await asyncio.sleep(_CONTENT_SCROLL_WAIT)
+
+            count = await author_count()
+            if count > seen:
+                seen = count
+                stale = 0
+                continue
+
+            stale += 1
+            if stale >= _CONTENT_MAX_STALE:
+                logger.debug(
+                    "Content search dry after %d scrolls, %d authors", i + 1, seen
+                )
+                break
+
     async def extract_feed(
         self,
         num_posts: int = 10,
@@ -1279,8 +1332,15 @@ class LinkedInExtractor:
                     logger.debug("Show more click failed: %s", e)
                     break
 
-        # Scroll to trigger lazy loading
-        if is_activity:
+        # Scroll to trigger lazy loading. Content search needs its own path: it
+        # is an infinite-scroll feed inside LinkedIn's own scroll container, so
+        # scroll_to_bottom's window.scrollTo is a no-op there and its height
+        # check then reports "reached bottom" on the first try. That is how a
+        # post search came back with one screen of results and looked like a
+        # thin day rather than a scraper that never scrolled.
+        if "/search/results/content/" in url:
+            await self._scroll_content_search(max_scrolls)
+        elif is_activity:
             scrolls = max_scrolls if max_scrolls is not None else 10
             await scroll_to_bottom(self._page, pause_time=1.0, max_scrolls=scrolls)
         else:
