@@ -289,6 +289,16 @@ export class TwitterMCPServer {
   private authenticatedPage: Page | null = null;
   private browserContextClose: (() => Promise<void>) | null = null;
   private readonly throttle = new Throttle();
+  /**
+   * One browser, one page, and callers that arrive in parallel: the digest runs
+   * its screeners concurrently and every one of them reaches this same server.
+   * `pace` spaces out when calls *start*; it never stopped two from being in
+   * flight at once, so one call's `goto` landed in the middle of another's
+   * scroll loop and the second caller was handed the first one's replies. This
+   * is the gate the dispatcher's comment already claimed to have — held from
+   * navigation through to the last scrape.
+   */
+  private gate: Promise<void> = Promise.resolve();
   private readonly profile: Profile;
 
   /**
@@ -338,6 +348,18 @@ export class TwitterMCPServer {
 
     // Register tool handlers
     this.setupToolHandlers();
+  }
+
+  /**
+   * Resolves once the caller owns the page; call what it returns to hand it on.
+   * A caller that never releases would stall every later tool call, so the
+   * release belongs in a `finally`, not at the end of the happy path.
+   */
+  private acquire(): Promise<() => void> {
+    const previous = this.gate;
+    let release!: () => void;
+    this.gate = new Promise<void>((resolve) => (release = resolve));
+    return previous.then(() => release);
   }
 
   private async ensureAuthenticated() {
@@ -769,6 +791,9 @@ export class TwitterMCPServer {
       if (cooling) {
         return { content: [{ type: "text", text: cooling }] as TextContent[], isError: true };
       }
+      // Queued, not rejected: a caller that waits its turn is slower than one
+      // that reads the wrong post, and only one of those is recoverable.
+      const release = await this.acquire();
       await this.throttle.pace();
 
       const dispatchedAt = Date.now();
@@ -834,6 +859,8 @@ export class TwitterMCPServer {
         // error message.
         if (upgraded instanceof RateLimitError) this.throttle.penalize();
         return this.handleError(upgraded);
+      } finally {
+        release();
       }
     });
   }
