@@ -74,4 +74,18 @@ Growth、Evangelist、猎头相关（Headhunter、Talent、Recruiting）。它�
 **删除条件**：当 `Connection Feed` 里 👍 的人数超过这次校准的样本数时，**把这一整节
 删掉**。到那时真实反馈已经比它更有信息量，留着只会往回拉。
 
-（尚未运行。第一次运行时填写。）
+**样本数：12。** 2026-08-24 用 `AI engineer` 和 `founder` 两个广词跑
+`network=["F"], geo_urn="90000084"`，两次返回几乎同一批人，第二页直接空 —— 湾区一度
+连接的技术人总共就这么多。**样本这么小，这一节的权重应该非常低**，攒到 13 个 👍 就删。
+
+观察到的模式（是假设，不是标准）：
+
+- **公司都很小、很早期**：Astrocade、Anuttacon、Tripo AI、Entropia、Hopscotch Health。
+  大公司只出现 ByteDance 和 Notion，且都是"Past:"或纯工程岗。
+- **学历/加速器信号密集**：Stanford PhD、Stanford CS Dropout、Tsinghua Yao Class、
+  A16Z Speedrun（SR003、SR Scout）、StartX。这类标记在这批人里几乎人手一个。
+- **一个意外的聚类：AI × 游戏/3D。** VIDEOGAME.ai、Tripo AI（GenAI for 3D）、
+  Astrocade、Anuttacon（Voice Agent）。这个方向在原始画像里完全没提到，可能只是社交
+  路径的产物，也可能是真实兴趣 —— **留给评分去裁决，不要现在就写进 query 池。**
+- **样本里混着明确不合格的人**：一个 VC partner、一个 VP Strategy and Partnerships。
+  这正是存活者偏差的直接证据 —— 一度连接是按各种理由连上的，不是按这份画像连上的。
