@@ -69,6 +69,31 @@ _SEARCH_TIMEOUT_MARGIN = 25.0
 _DEFAULT_TOOL_TIMEOUT = 180.0
 
 
+def _condense_content_search(text: str) -> str:
+    """Keep each post's author and opening, drop the rest of its body."""
+    blocks = text.split("Feed post")
+    if len(blocks) < 4:
+        # Not the shape we expect — hand back what we got rather than mangle it.
+        return text
+
+    condensed: list[str] = []
+    for block in blocks:
+        lines = [line.strip() for line in block.splitlines() if line.strip()]
+        if not lines:
+            continue
+        head = lines[:3]  # name, connection degree, headline
+        body = " ".join(lines[3:])
+        # The posted-at line and the Follow button are chrome, and at 150 posts
+        # a query they are most of what would be paid for.
+        body = _CONTENT_CHROME_RE.sub("", body).strip()
+        if len(body) > _CONTENT_BODY_CHARS:
+            body = body[:_CONTENT_BODY_CHARS].rstrip() + "…"
+        condensed.append("\n".join(head) + (f"\n{body}" if body else ""))
+
+    joined = "\n\n---\n\n".join(condensed)
+    return joined if joined.strip() else text
+
+
 def _search_time_budget() -> float:
     """Soft pagination budget = the server-side tool timeout minus a safety
     margin. Mirrors the TOOL_TIMEOUT env read by the config loader so the
@@ -79,6 +104,7 @@ def _search_time_budget() -> float:
     except ValueError:
         tool_timeout = _DEFAULT_TOOL_TIMEOUT
     return max(tool_timeout - _SEARCH_TIMEOUT_MARGIN, _SEARCH_TIMEOUT_MARGIN)
+
 
 # Normalization maps for job search filters
 _DATE_POSTED_MAP = {
@@ -130,6 +156,14 @@ _CONTENT_SCROLLS = 25
 _CONTENT_SCROLL_WAIT = 2.0
 _CONTENT_WHEEL_DELTA = 2000
 _CONTENT_MAX_STALE = 3
+# How much of each post's body survives. A scrolled content search is ~150 posts
+# of full innerText, which overruns what a tool result may carry — and almost all
+# of it is beside the point, because searching posts for people is answered by
+# who wrote it, not by what the post went on to say.
+_CONTENT_BODY_CHARS = 160
+_CONTENT_CHROME_RE = re.compile(
+    r"^(?:\d+[hdwmo]\s*•\s*(?:Edited\s*•\s*)?|Follow\s+|Connect\s+|Message\s+)+"
+)
 
 _DIALOG_SELECTOR = 'dialog[open], [role="dialog"]'
 _DIALOG_TEXTAREA_SELECTOR = '[role="dialog"] textarea, dialog textarea'
@@ -2864,7 +2898,12 @@ class LinkedInExtractor:
                 new_ids = [jid for jid in page_ids if jid not in seen_ids]
                 # TEMP DIAGNOSTIC — remove later (stderr, not stdout, to avoid breaking MCP JSON-RPC)
                 import sys as _sys
-                print(f"[DIAG] page={page_num + 1} url={url} raw_ids={len(page_ids)} new_after_dedup={len(new_ids)}", file=_sys.stderr, flush=True)
+
+                print(
+                    f"[DIAG] page={page_num + 1} url={url} raw_ids={len(page_ids)} new_after_dedup={len(new_ids)}",
+                    file=_sys.stderr,
+                    flush=True,
+                )
 
                 if not new_ids:
                     page_texts.append(extracted.text)
@@ -3089,7 +3128,9 @@ class LinkedInExtractor:
             params += f"&datePosted={_encode_list_facet([date_posted])}"
 
         url = f"https://www.linkedin.com/search/results/content/?{params}"
-        extracted = await self.extract_page(url, section_name="search_results")
+        # Its own section name only to claim its own reference cap — the result
+        # below still speaks "search_results" like every other search tool.
+        extracted = await self.extract_page(url, section_name="content_search")
 
         sections: dict[str, str] = {}
         references: dict[str, list[Reference]] = {}
@@ -3127,7 +3168,7 @@ class LinkedInExtractor:
         references: dict[str, list[Reference]] = {}
         section_errors: dict[str, dict[str, Any]] = {}
         if extracted.text and extracted.text != _RATE_LIMITED_MSG:
-            sections["search_results"] = extracted.text
+            sections["search_results"] = _condense_content_search(extracted.text)
             if extracted.references:
                 references["search_results"] = extracted.references
         elif extracted.error:

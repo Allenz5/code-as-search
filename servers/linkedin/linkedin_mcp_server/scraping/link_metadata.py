@@ -97,6 +97,10 @@ _REFERENCE_CAPS = {
     "posts": 12,
     "jobs": 8,
     "search_results": 15,
+    # Content search is one extraction over a scrolled feed, not a page at a
+    # time, so 15 truncated a hundred and fifty posts down to a dozen authors —
+    # and the authors are the entire point of searching posts for people.
+    "content_search": 200,
     "job_posting": 8,
     "contact_info": 8,
     "inbox": 30,
@@ -377,6 +381,9 @@ def derive_context(
 
     if section_name == "search_results":
         return "job result" if kind == "job" else "search result"
+
+    if section_name == "content_search":
+        return "post author" if kind == "person" else "post result"
 
     if section_name == "posts":
         if kind == "person":
