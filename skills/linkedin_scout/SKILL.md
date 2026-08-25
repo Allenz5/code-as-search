@@ -1,6 +1,6 @@
 ---
 name: linkedin_scout
-description: Search LinkedIn for Bay Area technical people building AI products who are worth reaching out to, verify them, and write the survivors to the Connection Feed database in Notion. Learns which searches work from the ratings on earlier rows. Use when the user says "/linkedin_scout", or on a scheduled run.
+description: Search LinkedIn for Bay Area technical people building AI products who are worth reaching out to, verify them, and write the survivors to the Connection Digest database in Notion. Learns which searches work from the ratings on earlier rows. Use when the user says "/linkedin_scout", or on a scheduled run.
 ---
 
 # LinkedIn Scout
@@ -45,8 +45,8 @@ Never open a second LinkedIn session. Every profile read goes through the one se
 
 1. Read `skills/linkedin_scout/profile.md` and `skills/linkedin_scout/queries.md`.
 
-2. **Fold in feedback.** Query `Connection Feed` for rows where `Rating` is set and
-   `Learned` is unchecked. Check `Learned` on every row you consume.
+2. **Fold in feedback.** Query `Connection Digest` for rows where `Rating` is set or
+   `Comment` is non-empty, and `Learned` is unchecked. Check `Learned` on every row you consume.
 
    The three ratings do not do the same job, and mixing them is the main way this loop can
    go wrong:
@@ -60,6 +60,28 @@ Never open a second LinkedIn session. Every profile read goes through the one se
    **😐 never becomes a `profile.md` example.** It does not say the profile is wrong; it
    says the bar is too low. Filing it as a negative example would teach the screen to drop
    a kind of person the user still wants.
+
+   **Comments are evidence about one row, never a rule.** The user may write free text in
+   `Comment` saying what was good or wrong about a specific item. Read those alongside the
+   ratings — but four things govern what you do with them, and they exist because the
+   obvious handling destroys the file:
+
+   - **Never copy comment text into `profile.md`.** A comment is about one item; the file holds
+     general standards. Pasting the words in is exactly how a criteria file becomes hundreds
+     of accumulated demands that nobody can apply and nothing can be judged against.
+   - **One comment changes nothing.** Read it, check `Learned`, move on. Only when two or
+     more comments point at the same underlying cause does the file change at all. A single
+     remark about a single item is an observation, not a pattern.
+   - **When it does change, rewrite — never append.** `profile.md` has a ceiling of 120 lines.
+     At the ceiling a new idea must displace an older one, which forces the distillation
+     that keeps the file usable. The archive lives in Notion, where every comment stays
+     attached to its row forever; the file is the distillation, not the log.
+   - **Test any change against the 👍 rows before writing it.** Overcorrection is the real
+     danger: one sharp comment about one item easily becomes a rule that swings the standard
+     too far. If the rule you are about to write would have rejected someone the user
+     already marked 👍, it is too strong. Weaken it, or leave it unwritten and wait for more
+     evidence.
+
 
 3. **Maintain the query pool.** Group the rated rows by `Source` and by `Channel`, compute
    hit rate = 👍 ÷ (👍 + 😐 + 👎), and apply the rules in `queries.md`. The one that needs
@@ -158,9 +180,9 @@ turns on — usually whether the company is real and notable. `get_company_profi
 `search_companies` are what you have; when they cannot settle it, the claim stays unsettled
 and goes into `Verified` as such.
 
-## Writing to Connection Feed
+## Writing to Connection Digest
 
-Database: `Connection Feed` under the `Work` page.
+Database: `Connection Digest` under the `Work` page.
 Data source: `collection://3c068caf-1e11-4ca0-9164-c3c744dac2b3`
 
 One row per person who passed all four axes.

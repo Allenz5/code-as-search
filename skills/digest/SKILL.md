@@ -21,8 +21,8 @@ just another feed.
 ## Start
 
 1. Read `skills/digest/interests.md`.
-2. Fold in feedback: query the Notion database for rows where `Rating` is set and
-   `Learned` is unchecked. Check `Learned` on every row you consume, and let real feedback
+2. Fold in feedback: query the Notion database for rows where `Rating` is set or
+   `Comment` is non-empty, and `Learned` is unchecked. Check `Learned` on every row you consume, and let real feedback
    displace the seed examples over time.
 
    The three ratings do not say the same kind of thing. **👍 有用** and **👎 没用** are
@@ -34,6 +34,28 @@ just another feed.
    it, and say so in that run's report. Do not turn 一般 rows into `interests.md` examples:
    nothing about the subject was wrong, and filing them as negative examples would teach
    the screen to drop a topic the user still wants.
+
+   **Comments are evidence about one row, never a rule.** The user may write free text in
+   `Comment` saying what was good or wrong about a specific item. Read those alongside the
+   ratings — but four things govern what you do with them, and they exist because the
+   obvious handling destroys the file:
+
+   - **Never copy comment text into `interests.md`.** A comment is about one item; the file holds
+     general standards. Pasting the words in is exactly how a criteria file becomes hundreds
+     of accumulated demands that nobody can apply and nothing can be judged against.
+   - **One comment changes nothing.** Read it, check `Learned`, move on. Only when two or
+     more comments point at the same underlying cause does the file change at all. A single
+     remark about a single item is an observation, not a pattern.
+   - **When it does change, rewrite — never append.** `interests.md` has a ceiling of 100 lines.
+     At the ceiling a new idea must displace an older one, which forces the distillation
+     that keeps the file usable. The archive lives in Notion, where every comment stays
+     attached to its row forever; the file is the distillation, not the log.
+   - **Test any change against the 👍 rows before writing it.** Overcorrection is the real
+     danger: one sharp comment about one item easily becomes a rule that swings the standard
+     too far. If the rule you are about to write would have rejected someone the user
+     already marked 👍, it is too strong. Weaken it, or leave it unwritten and wait for more
+     evidence.
+
 
 Do this before pulling feeds — this run should be judged by the updated standard.
 

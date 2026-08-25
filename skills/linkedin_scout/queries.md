@@ -1,6 +1,6 @@
 # 搜索池
 
-`/linkedin_scout` 每轮从这里取 query，跑完按 `Connection Feed` 里的战绩改这里。
+`/linkedin_scout` 每轮从这里取 query，跑完按 `Connection Digest` 里的战绩改这里。
 战绩本身不存在这个文件里——它每轮从 Notion 现算（按 `Source` 和 `Channel` 分组数
 各档 Rating）。两个状态存储会漂移，一个不会。这里只存 query 本身和定性笔记。
 
