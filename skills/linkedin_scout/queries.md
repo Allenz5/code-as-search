@@ -216,6 +216,15 @@ SF 的 meetup 就说明人在湾区"。错在把**帖子提到的地点**当成�
 
 **类型 A 是唯一被验证有结构性优势的。** 建议扩充。
 
+**地点闸门（2026-08-24 正反对照验证通过）**：搜帖渠道的候选人不要用 profile 读取去查
+湾区，用 `search_people(keywords="<人名>", geo_urn="90000084")` —— 一次便宜的搜索就能
+回答，还顺带给出 headline 和城市。
+正向：`Shubham Phal` → 命中，返回 "Mountain View, California"。
+反向：`Kushal Byatnal`（实际在纽约）→ No results found。
+本轮三次 profile 读取里有两次是花在地点上的，这个闸门本可以省掉。
+两个注意：LinkedIn 会模糊匹配人名（会提示 "Did you mean…"），所以命中之后要核对姓名和
+headline 确实是同一个人；显示名里有 emoji 或异体拼写可能造成假阴性。
+
 ## 本轮主动削减（必须记录，否则下轮看不出是"没有"还是"没找"）
 
 2026-08-24 首跑：

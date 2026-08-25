@@ -142,9 +142,15 @@ Four things that will otherwise cost you:
 - **Parse candidates out of the text, not out of `references`.** On second-degree results
   LinkedIn lists your *mutual connections*, and the reference extractor picks them up as
   people. One test returned 51 references for 47 candidates that way.
-- **The post channel has no location facet.** LinkedIn content search filters by time,
-  type and author — not place. Everyone it surfaces needs the Bay Area check done by hand,
-  which makes each of its candidates more expensive than a search_people one.
+- **The post channel has no location facet — gate it with a name lookup, not a profile
+  read.** LinkedIn content search filters by time, type and author's own words, never by
+  place, so a post author's location is unknown until you check. Do not spend a profile read
+  on that: `search_people(keywords="<their name>", geo_urn="90000084")` answers it in one
+  cheap search, and hands back their headline and city as well. A name that returns nothing
+  is not in the Bay Area; that gate alone would have saved two of the three profile reads
+  the post channel cost on 2026-08-24. Two cautions — LinkedIn fuzzy-matches names ("Did you
+  mean…"), so confirm the returned name and headline are actually your author, and unusual
+  spellings or emoji in a display name can produce a false negative.
 - **Post queries need more invention than people queries, and that is a requirement, not a
   preference.** People search is one stable population phrased different ways. Post search
   is different *kinds of post exposing different kinds of person*, and the kinds have to be
