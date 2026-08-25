@@ -72,7 +72,7 @@ Never open a second LinkedIn session. Every profile read goes through the one se
    - **One comment changes nothing.** Read it, check `Learned`, move on. Only when two or
      more comments point at the same underlying cause does the file change at all. A single
      remark about a single item is an observation, not a pattern.
-   - **When it does change, rewrite — never append.** `profile.md` has a ceiling of 120 lines.
+   - **When it does change, rewrite — never append.** `profile.md` has a ceiling of 200 lines.
      At the ceiling a new idea must displace an older one, which forces the distillation
      that keeps the file usable. The archive lives in Notion, where every comment stays
      attached to its row forever; the file is the distillation, not the log.
