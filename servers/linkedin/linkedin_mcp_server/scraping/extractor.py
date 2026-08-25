@@ -3136,7 +3136,7 @@ class LinkedInExtractor:
         references: dict[str, list[Reference]] = {}
         section_errors: dict[str, dict[str, Any]] = {}
         if extracted.text and extracted.text != _RATE_LIMITED_MSG:
-            sections["search_results"] = extracted.text
+            sections["search_results"] = _condense_content_search(extracted.text)
             if extracted.references:
                 references["search_results"] = extracted.references
         elif extracted.error:
@@ -3168,7 +3168,7 @@ class LinkedInExtractor:
         references: dict[str, list[Reference]] = {}
         section_errors: dict[str, dict[str, Any]] = {}
         if extracted.text and extracted.text != _RATE_LIMITED_MSG:
-            sections["search_results"] = _condense_content_search(extracted.text)
+            sections["search_results"] = extracted.text
             if extracted.references:
                 references["search_results"] = extracted.references
         elif extracted.error:
