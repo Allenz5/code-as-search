@@ -85,15 +85,25 @@
 **选词教训（作废的那版）**：第一批用长而具体的短语（`shipped our agent to production`），
 当时归因于"太罕见"。真实原因是上面第 1 条 —— 短语根本没被当短语匹配。
 
-### 类型 A：招聘帖 —— 曝光的是发帖的人，不是帖子的主题
+### 类型 A：招聘帖 —— 主力类型
 
-小公司的 AI 招聘帖多半是技术创始人或工程负责人自己发的。这是唯一一种"内容平庸但作者
-恰好正是目标"的帖子类型。
+**这是唯一被实测证明有结构性优势的类型**（2026-08-24）：发招聘帖的人按定义就是在招人
+的那个人，所以作者身份由帖子类型本身决定，不用赌"聊这话题的恰好是目标"。其余类型都在赌。
 
-1. `ai hiring`
-2. `hiring founding engineer`
+**因为是词袋匹配，同一意思换语序等于同一个 query。** 这个类型真正的变量是**招的什么岗位**
+—— 岗位名换了，发帖的人群才换。所以下面的 query 变的是岗位名词，不是"招聘"的说法。
+
+1. `ai hiring` —— Allen 提的。最宽，也最脏：会捞到 IT 外包派遣刷屏（C2C / W2 / Hotlist），
+   减分词已覆盖
+2. `hiring founding engineer` —— **实测最好的一个**
 3. `hiring AI engineer`
-4. `looking for a technical cofounder`
+4. `technical cofounder`
+5. `first engineering hire`
+6. `hiring machine learning engineer`
+7. `hiring research engineer`
+8. `hiring infrastructure engineer`
+
+地点问题用人名闸门解决（见上），不要用 profile 读取去查。
 
 ### 类型 B：发布与上线 —— 曝光的是造东西的人
 
@@ -131,20 +141,17 @@
 22. `raised our seed`
 23. `Series A`
 
-### 类型 G：AI 线下活动 —— 唯一自带地点信号的类型
+### 已去掉的类型 G：AI 线下活动
 
-24. `AI meetup`
-25. `AI hackathon`
-26. `demo day`
-27. `SF AI event`
-28. `speaking at`
+`AI meetup` / `AI hackathon` / `demo day` / `SF AI event` / `speaking at` —— **2026-08-24
+去掉**。当初加它的理由是"线下活动帖自带地点信号"，这个理由是错的：内容搜索匹配的是
+**帖子提到的地点**，不是**作者所在的地点**（见机制第 2 条）。实测 `AI meetup` 返回 Pune、
+卢森堡、东京、伊兹密尔、阿肯色；`San Francisco AI hackathon` 返回的是聊旧金山广告牌和
+加州法案的顾问。
 
-**这个类型有一个别的类型都没有的性质：它自带地点。** 搜帖渠道最大的缺陷是没有 geo
-facet，每个候选人都要单独查湾区。但一个人发帖说他去了旧金山的 AI meetup，这件事本身
-就说明他人在湾区。所以这个类型的候选人**廉价筛那一层就便宜得多**，值得多给配额。
-
-副作用是它也会捞到活动主办方、社区运营和到处站台的人 —— 那些是 axis 1 的典型失败。
-战绩单独看。
+去掉的是这个立论和这批 query，不是"线下活动"这个想法本身。如果要重开，得换成**具体的
+湾区活动名**（`AI Valley`、`Cerebral Valley`、`YC Demo Day` 这类），让活动名本身成为
+地点信号 —— 那是词袋匹配能做到的，通用活动词不行。
 
 ### 不做的类型：论文与会议
 

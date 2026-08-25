@@ -102,7 +102,7 @@ Never open a second LinkedIn session. Every profile read goes through the one se
    **Types, not just queries.** For the post channel the unit that matters is the *type* of
    post, and a new type is worth more than a dozen new queries inside an old one. Do not try
    to generate types — that is the user's job, and both of the best ones in the pool (hiring
-   posts, in-person AI events) came from them. **Ask for a new type in every run report**
+   posts) came from them. **Ask for a new type in every run report**
    instead; that request is the mechanism.
 
    A type retires differently from a query: only when all of its queries together have
