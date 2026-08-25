@@ -103,19 +103,20 @@ production`、`prompt caching hit rate`）。方向错了 —— 太罕见的短
 20. `starting at`
 21. `joining the team at`
 
-### 类型 F：研究与会议
-
-22. `our paper`
-23. `NeurIPS`
-24. `ICML`
-25. `accepted at`
-
-### 类型 G：融资 —— 高风险高回报
+### 类型 F：融资 —— 高风险高回报
 
 会捞到创始人，也会捞到大量 VC 和做 marketing 的。留着，但战绩要单独看。
 
-26. `raised our seed`
-27. `Series A`
+22. `raised our seed`
+23. `Series A`
+
+### 不做的类型：论文与会议
+
+`our paper` / `NeurIPS` / `ICML` / `accepted at` 这一类**明确不做**。论文发布帖曝光的
+是学者 —— 博士生、教授、实验室的研究方向 —— 而画像要的是在公司里造产品的人。注意这不是
+说研究员不合格：首跑写进库的十三个人里有一多半是前沿实验室的 research engineer。区别在
+**入口**，不在人：从论文帖进来的是学术身份的人，从招聘帖、上线帖、开源帖进来的才是
+在做产品的人。别再把这个类型加回来。
 
 ## 定向渠道
 
