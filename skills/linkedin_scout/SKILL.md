@@ -77,6 +77,23 @@ Never open a second LinkedIn session. Every profile read goes through the one se
    Write the changes into `queries.md` with a one-line reason each. A pool that changed
    without a recorded reason cannot be reasoned about next week.
 
+   **Types, not just queries.** For the post channel the unit that matters is the *type* of
+   post, and a new type is worth more than a dozen new queries inside an old one. There is
+   exactly one mechanical way to find one: take up to three newly 👍 people and pull their
+   own posts (`get_person_profile` with `sections="posts"`), then ask what kind of post they
+   write. A kind that no current type covers is a door this person could have been found
+   through and was not. Propose at most one new type per run and name the person it came
+   from.
+
+   Be honest that this is a weak generator. Both of the best types so far — hiring posts and
+   in-person AI events — came from the user, not from any mechanism, and no reverse-lookup
+   would plausibly have produced them. So **ask for a new type in every run report**. That
+   request is not filler; type invention is the scarcest input this skill has.
+
+   A type retires differently from a query: only when all of its queries together have
+   written zero rows across ten runs. Its budget then goes to a candidate type rather than
+   being spread over the survivors.
+
 4. **Cold start only.** If `profile.md` still carries the calibration section marked
    "尚未运行", run `search_people(network=["F"], geo_urn="90000084")` once against two or
    three broad terms, read a handful of those profiles, and write the recurring patterns
@@ -180,6 +197,11 @@ checkable if the zero is written down.
 **The query scoreboard**: for each query run today, how many it produced, and its standing
 hit rate from earlier ratings. Then what you changed in `queries.md` and why — promoted,
 tightened, retired, revived, added.
+
+**A request for a new post type**, every time. Say which types produced today and which
+produced nothing, then ask. The reverse-lookup above is the only generator the skill has and
+it is a weak one — the two best types in the pool were handed over by the user, so asking is
+the mechanism, not a courtesy.
 
 **What you left undone**: profiles beyond the twenty, queries not reached inside 90
 minutes, anything cut off by a cooldown. This is the difference between "there was nobody"
