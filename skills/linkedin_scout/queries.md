@@ -48,30 +48,74 @@
 9. `AI product engineer 0 to 1`
 10. `machine learning systems engineer distributed training`
 
-## 搜帖 · 探索池（未验证）
+## 搜帖 · 查询池
+
+**这条渠道不设渠道级退役。** 单个 query 照常按命中率退役，但渠道本身留着 —— 帖子能触达
+的人和搜人触达的人不是同一批，而且它是唯一能按"这个人在做什么、在说什么"找人的入口。
+搜人只能按头衔和公司找。
+
+**搜帖的 query 要比搜人更多花样，这是硬要求。** 搜人是一个稳定人群的不同说法；搜帖是
+**不同种类的帖子会曝光不同种类的人**，而种类本身要靠想出来。所以这里按"帖子类型"组织，
+每轮从多个类型各取几个，不要全从一个类型里取。
 
 配 `date_posted="past-week"`。**这条渠道没有地点 facet**，捞到的人必须单独查湾区。
 
-选词原则：**挑构建者会写、而营销的人不会写的短语。** 第一次实测用
-`AI agents evals production` 搜出来六个人，零个合格——CISO 的招聘帖、投票、猎头、
-newsletter 推广。原因是结构性的：LinkedIn 内容搜索按互动量排序，而 LinkedIn 上互动量
-高的就是招聘帖和 thought leadership。所以这里的词要具体到只有干活的人才会用。
+**选词教训（2026-08-24）**：第一批我用的是长而具体的短语（`shipped our agent to
+production`、`prompt caching hit rate`）。方向错了 —— 太罕见的短语匹配数本来就少，
+剩下的又都是长篇引流帖。**宽而常见的词 + 真正翻到底，好过窄而精确的词只看一屏。**
 
-1. `shipped our agent to production`
-2. `inference cost per token`
-3. `eval harness regression`
-4. `we open sourced`
-5. `context window limitation`
-6. `agent reliability failure mode`
-7. `fine-tuned on our own data`
-8. `latency p99 LLM`
-9. `training run compute`
-10. `built an MCP server`
-11. `prompt caching hit rate`
-12. `benchmark results reproduce`
-13. `RAG retrieval quality`
-14. `multi-agent orchestration lessons`
-15. `model weights released`
+### 类型 A：招聘帖 —— 曝光的是发帖的人，不是帖子的主题
+
+小公司的 AI 招聘帖多半是技术创始人或工程负责人自己发的。这是唯一一种"内容平庸但作者
+恰好正是目标"的帖子类型。
+
+1. `ai hiring`
+2. `hiring founding engineer`
+3. `hiring AI engineer`
+4. `looking for a technical cofounder`
+
+### 类型 B：发布与上线 —— 曝光的是造东西的人
+
+5. `we just launched`
+6. `introducing our`
+7. `shipped this week`
+8. `now in beta`
+
+### 类型 C：开源
+
+9. `open source`
+10. `released on GitHub`
+11. `our repo`
+12. `MIT license`
+
+### 类型 D：技术主题 —— 宽词，靠翻页取量
+
+13. `ai engineer`
+14. `inference`
+15. `evals`
+16. `fine-tuning`
+17. `agents in production`
+18. `reinforcement learning`
+
+### 类型 E：换工作 —— 曝光的是刚进精英实验室的人
+
+19. `excited to join`
+20. `starting at`
+21. `joining the team at`
+
+### 类型 F：研究与会议
+
+22. `our paper`
+23. `NeurIPS`
+24. `ICML`
+25. `accepted at`
+
+### 类型 G：融资 —— 高风险高回报
+
+会捞到创始人，也会捞到大量 VC 和做 marketing 的。留着，但战绩要单独看。
+
+26. `raised our seed`
+27. `Series A`
 
 ## 定向渠道
 
@@ -113,9 +157,10 @@ newsletter 推广。原因是结构性的：LinkedIn 内容搜索按互动量排
 - **搜帖渠道第二次零产出**（2026-08-24）：`shipped our agent to production` 和
   `built an MCP server` 两个 query，约 12 个作者，0 合格。作者构成是 DevRel 主管、
   招人的猎头、Account Executive、Salesforce 行政助理、GTM、一个外州学生、两个引流帖。
-  换了"构建者会写的短语"这个选词原则之后**结果没有改善**，说明问题不在选词，在于
-  内容搜索按互动量排序这件事本身。累计 3 query / 约 24 作者 / 0 合格。
-  距离渠道级退役线（连续 5 天零产出）还有 4 天。
+  但**这个结论已经作废** —— 当时每个 query 只看到一屏，因为抓取器根本没滚动
+  （`window.scrollTo` 在 LinkedIn 自己的滚动容器里是空操作）。而互动量排序的信息流
+  第一屏，恰好就是最会做互动的那一层。这条渠道从没被测过，只是在它最差的点上被采样了
+  三次。修复见 commit a5ab7d2，选词方向已按"宽词 + 翻到底"重写。
 
 ## 本轮主动削减（必须记录，否则下轮看不出是"没有"还是"没找"）
 

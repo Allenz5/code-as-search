@@ -7,6 +7,7 @@ from dataclasses import dataclass
 import json
 import logging
 import os
+import random
 import re
 import time
 from typing import TYPE_CHECKING, Any, Literal
@@ -119,6 +120,12 @@ _DATE_POSTED_TOKENS = ("past-24h", "past-week", "past-month")
 # Content search is an infinite-scroll feed, so it gets the feed's treatment,
 # not the generic page defaults (5 scrolls, 0.5s) that are tuned for pages which
 # actually finish loading. 25 x 2s stays well inside the 180s tool timeout.
+# The throttle middleware paces tool calls, but a paginated search is several
+# page loads inside ONE call, so those went out back to back and slipped past
+# it entirely. Same band as the middleware, applied between pages.
+_PAGE_PACE_MIN = 6.0
+_PAGE_PACE_JITTER = 6.0
+
 _CONTENT_SCROLLS = 25
 _CONTENT_SCROLL_WAIT = 2.0
 _CONTENT_WHEEL_DELTA = 2000
@@ -2997,7 +3004,26 @@ class LinkedInExtractor:
         seen_ref_urls: set[str] = set()
         section_errors: dict[str, dict[str, Any]] = {}
 
+        budget = _search_time_budget()
+        started = time.monotonic()
+
         for page_no in range(1, pages + 1):
+            if page_no > 1:
+                # Pacing has to be inside the budget check, not after it: the
+                # sleep is most of what a later page costs.
+                gap = _PAGE_PACE_MIN + random.random() * _PAGE_PACE_JITTER
+                if time.monotonic() - started + gap > budget:
+                    section_errors["search_results_pagination"] = {
+                        "error_type": "time_budget",
+                        "error_message": (
+                            f"Stopped after {page_no - 1} of {pages} pages: another "
+                            f"paced page would not fit inside the tool timeout. "
+                            f"What came back is complete for those pages."
+                        ),
+                    }
+                    break
+                await asyncio.sleep(gap)
+
             url = base_url if page_no == 1 else f"{base_url}&page={page_no}"
             extracted = await self.extract_page(url, section_name="search_results")
 

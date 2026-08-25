@@ -95,13 +95,13 @@ results.
 | channel | call | notes |
 |---|---|---|
 | search_people | `search_people(kw, geo_urn="90000084", network=["S","O"], pages=3)` | ~28 people per query, location genuinely filtered |
-| search_posts | `search_posts(kw, date_posted="past-week")` | 12–15 queries; exploration |
+| search_posts | `search_posts(kw, date_posted="past-week")` | 12–15 queries, drawn from several post *types* — see queries.md |
 | company_employees | `get_company_employees(slug, keywords)` | slug via `search_companies` |
 | company_posts | `get_company_posts(slug)` | authors who showed up |
 | feed | `get_feed(num_posts=100)` | once |
 | sidebar | `get_sidebar_profiles(username)` | seed must be an already-👍 person |
 
-Three things that will otherwise cost you:
+Four things that will otherwise cost you:
 
 - **`pages=3`, not 5.** Pages four and five bring `Discover more great results` (blurred
   profiles with no name and no link) and `Related results` (LinkedIn loosening the match).
@@ -113,6 +113,14 @@ Three things that will otherwise cost you:
 - **The post channel has no location facet.** LinkedIn content search filters by time,
   type and author — not place. Everyone it surfaces needs the Bay Area check done by hand,
   which makes each of its candidates more expensive than a search_people one.
+- **Post queries need more invention than people queries, and that is a requirement, not a
+  preference.** People search is one stable population phrased different ways. Post search
+  is different *kinds of post exposing different kinds of person*, and the kinds have to be
+  thought up. A hiring post exposes the founder who wrote it whatever its content; a
+  job-change post exposes someone who just joined a frontier lab; an open-source post
+  exposes the person who shipped the repo. Draw each run's queries from several types in
+  `queries.md`, never all from one. Broad common words scrolled to the bottom beat rare
+  precise phrases read one screen deep — that was learned the expensive way.
 
 **Drop what you have already delivered.** Query the database for existing profile URLs
 first and skip them. Also dedupe across queries within the run — high overlap between
