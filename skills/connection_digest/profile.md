@@ -1,8 +1,8 @@
 # 找什么样的人
 
-这份文件是 `/linkedin_scout` 的地基。它会自我更新——每轮开头，agent 把你在 Notion
+这份文件是 `/connection_digest` 的地基。它会自我更新——每轮开头，agent 把你在 Notion
 `Connection Digest` 里标过 👍 和 👎 的人消化成新例子追加到下面，判断有系统性偏差时改写
-描述。`git log -p skills/linkedin_scout/profile.md` 能看到标准怎么漂移的。
+描述。`git log -p skills/connection_digest/profile.md` 能看到标准怎么漂移的。
 
 你随时可以直接改这个文件。手写的和 agent 写的一样有效。
 
@@ -21,8 +21,15 @@
 一个人要进 `Connection Digest`，四条都得成立。它们是独立的——不能用一条特别强去补另一条
 不成立，因为你给的三个反例每个都只卡在一条上。
 
-**1. 技术性。** 他自己动手构建东西。不是管这件事的人，不是讲这件事的人，是写代码、
-设计系统、把东西跑起来的人。
+**1. 技术性。** 两条通路，满足其一即可：
+
+- **他自己动手构建**：不是管这件事的人，不是讲这件事的人，是写代码、设计系统、把东西
+  跑起来的人。
+- **他在给自己的团队招 AI 岗**：hiring manager、招工程师的创始人、带队的工程负责人。
+  判据是**他招的那个岗位本身是 AI 岗**（research engineer、post-training、inference、
+  agent 之类），不是"用 AI 做招聘"，也不是一家碰巧有 AI 的公司在招普通岗位。
+  第三方猎头和 staffing 不走这条 —— 他们招的不是自己的团队，见面换不到任何关于那支
+  团队在做什么的信息。
 
 **2. AI 产品。** 他做的是 AI 产品本身，而不是"在一家恰好有 AI 的公司里工作"。区别在于
 他的日常是不是在解决 AI 特有的问题——模型行为、评估、推理成本、agent 可靠性、数据管道。
@@ -53,8 +60,12 @@
 这一节是机械可用的判据，随反馈增补。
 
 **headline 里这些词单独出现时是减分项**：Thought Leader、Speaker、Influencer、
-Growth、Evangelist、猎头相关（Headhunter、Talent、Recruiting）。它们不是自动否决，
+Growth、Evangelist、猎头相关（Headhunter、Talent、Recruiting、Staffing）。它们不是自动否决，
 但需要轴 1 的其他证据来抵消。
+
+**招聘那一组要分两种看。** "Technical Recruiter @ 某 staffing 公司"仍然是减分项；
+"我们组在招 inference engineer"由团队自己的人发出来，走的是轴 1 的第二条通路，**不减分**。
+区别在他招的是不是自己的团队，不在 headline 里有没有 hiring 这个词。
 
 **关注者数在搜索结果页就能看到**（`6K followers` 这种），是轴 3 第二条通路最便宜的
 代理指标。看不到关注者数不代表没有，只代表这一层判不了。

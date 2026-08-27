@@ -1,14 +1,14 @@
 ---
-name: linkedin_scout
-description: Search LinkedIn for Bay Area technical people building AI products who are worth reaching out to, verify them, and write the survivors to the Connection Digest database in Notion. Learns which searches work from the ratings on earlier rows. Use when the user says "/linkedin_scout", or on a scheduled run.
+name: connection_digest
+description: Search LinkedIn for Bay Area technical people building AI products who are worth reaching out to, verify them, and write the survivors to the Connection Digest database in Notion. Learns which searches work from the ratings on earlier rows. Use when the user says "/connection_digest", or on a scheduled run.
 ---
 
-# LinkedIn Scout
+# Connection Digest
 
 You are looking for people worth reaching out to. One list a day, each row with a reason
 attached and the search that found them recorded.
 
-The standard is `skills/linkedin_scout/profile.md` — four axes, all of which must hold.
+The standard is `skills/connection_digest/profile.md` — four axes, all of which must hold.
 Read it first, every run. Judge against it, not against your own sense of who is
 impressive.
 
@@ -35,7 +35,7 @@ The server enforces most of this and you must not work around it:
   report it as incomplete, and say which stage stopped. Do not retry, do not switch
   channels to keep going, do not wait it out — retrying into a restriction is how a
   warning becomes a ban.
-- **90 minutes wall clock, hard.** Not because anybody is waiting, but because `/digest`
+- **90 minutes wall clock, hard.** Not because anybody is waiting, but because `/feed_digest`
   runs at 12:23 on the same account and this starts at 10:31. Overrunning means two jobs
   scraping one account at once. Stop at 90 minutes wherever you are and report it.
 
@@ -43,7 +43,51 @@ Never open a second LinkedIn session. Every profile read goes through the one se
 
 ## Start
 
-1. Read `skills/linkedin_scout/profile.md` and `skills/linkedin_scout/queries.md`.
+**First, `date -Iseconds`.** Hold on to it. `run-logger` needs the run's start time at the
+end, and this run has a 90-minute budget it can only spend if it knows when it started.
+
+**Then take the comments off your control page.** [`Digest Controls`](https://app.notion.com/p/3c9ba5489378819199f6c8174886964f) in Notion
+mirrors the documents that govern this run, one child page each:
+
+| document | page id |
+|---|---|
+| `skills/connection_digest/SKILL.md` | `3c9ba548-9378-81c5-9129-f1c4f82fcd7b` |
+| `skills/connection_digest/profile.md` | `3c9ba548-9378-81ef-a7fe-d04a7717d091` |
+| `skills/connection_digest/queries.md` | `3c9ba548-9378-81a1-bc80-c6dd87310618` |
+
+Call `notion-get-comments(page_id, include_all_blocks=true)` on each. It returns unresolved
+threads by default, which is what you want. Two things decide whether a thread is live:
+
+- A thread whose newest comment is your own `✅ 已改：…` is consumed — skip it.
+- A thread where the user has replied *under* that ✅ is live again, and what he says there
+  outranks what you decided last time.
+
+For each live thread, work by `/update_skill`: the comment is evidence about the instruction
+that produced the behaviour, so find that instruction and rewrite it. **Do not paste his
+words into the file.** That is the exact failure `/update_skill` exists to prevent, and
+these documents have a 200-line ceiling that appending would spend on one example.
+
+The "one comment changes nothing" rule below does not apply here. That rule is about
+`Comment` on a digest row, which is evidence about a single person. A comment on the control
+page is the user talking about the document itself, at the level the document is written —
+act on it the first time.
+
+**When the comment is a complaint with no wanted behaviour attached**, and you cannot infer
+it from the document, do not guess. Reply `❓ <the question>` and leave the thread live.
+Nobody is awake at 10:31 to answer, and a standard bent the wrong way costs more than a
+run that carried one comment over to tomorrow.
+
+Reply `✅ 已改：<which instruction changed, and what it said before>` on every thread you did
+act on. Then re-read the files you edited — this run is judged by the updated standard.
+
+`queries.md` is on the page too, and it is the one you should expect comments on: it holds
+the live query list, so "retire this one", "don't try that word" and "raise it to three pages"
+all land there. It stopped being a log on 2026-08-27 — the per-run production tables and the
+cut record came out, because `Run Log` and `git log -p` already hold both — so **do not put
+run history back into it.** A new observation either changes the pool or rewrites one
+judgement in `定性笔记`, undated.
+
+1. Read `skills/connection_digest/profile.md` and `skills/connection_digest/queries.md`.
 
 2. **Fold in feedback.** Query `Connection Digest` for rows where `Rating` is set or
    `Comment` is non-empty, and `Learned` is unchecked. Check `Learned` on every row you consume.
@@ -191,7 +235,10 @@ and goes into `Verified` as such.
 Database: `Connection Digest` under the `Work` page.
 Data source: `collection://3c068caf-1e11-4ca0-9164-c3c744dac2b3`
 
-One row per person who passed all four axes.
+One row per person who passed all four axes, and **every row gets all twelve columns**:
+`Name`, `URL`, `Headline`, `Company`, `Role`, `Location`, `Channel`, `Source`, `Score`,
+`Why`, `Verified`, `Captured`. A column the schema has and this file never names is one
+that goes missing without erroring.
 
 - **`Source` is the exact query text, verbatim.** Not a paraphrase, not a summary. It is
   the join key between the user's ratings and the searches, and the entire learning loop
@@ -231,3 +278,47 @@ and "I ran out of budget", and only one of those is a fact about LinkedIn.
 **Bugs, not bad days.** A tool that returned someone else's data, a scrape that came back
 empty, a rate limit — count those separately and name them. They are yours to fix, not the
 platform's bad day.
+
+**Refresh the mirror.** If this run changed one of the documents on `Digest Controls` — from
+a comment, or from the ratings loop — republish that child page from the file with
+`notion-update-page` / `replace_content`. Only the files that actually changed: the page is a
+mirror, and nothing else ever writes to it, so a page you skip stays stale until some later
+run touches its file. Do this before dispatching `run-logger`, and say in `NOTABLE` which
+documents you republished and why.
+
+**Then log the run.** The report above goes to `~/.local/state/connection-digest/`, which nobody reads
+and next week's run cannot. Dispatch `run-logger` once, at the very end, and it becomes a
+row in `Run Log` — which is what lets the retire rules be computed from history instead of
+remembered. `queries.md` already says the standing record should be recalculated rather than
+stored twice; this is the same argument one level up, for the channels.
+
+Dispatch it even when a cooldown ended the run early — especially then. A run that stopped
+at the first refusal and wrote no row is indistinguishable from a day with nobody to find.
+
+```
+DIGEST:   Connection Digest
+STARTED:  the timestamp from the top of this run
+FINISHED: `date -Iseconds`, now
+STATUS:   完成 | 部分（读取预算 20 个用尽，还有人没读）| 中断（cooldown 拒绝调用、90 分钟到、被 kill）| 失败
+FUNNEL:   one line per channel — search_people, search_posts, company_employees,
+          company_posts, feed, sidebar — as
+          `<name>  pulled → new → shortlisted → read → written`. All six every run. A channel
+          you never ran this round is `<name>  —  (why)`: no 👍 seed for sidebar, no company
+          slug worth an employee search. That is a different claim from zero, and the
+          difference decides whether a channel deserves retiring.
+BUGS:     one line each, `[channel] what broke → what it cost`. `none` when nothing did.
+NOTABLE:  what you changed in `queries.md` and why — promoted, tightened, retired, revived,
+          added — which post types produced and which produced nothing, and your request for
+          a new post type. Keep the request in your own words; it is the only generator this
+          skill has.
+UNREAD:   profiles beyond the twenty, queries never reached, anything a cooldown cut off.
+          Omit only when STATUS is 完成.
+```
+
+Every one of the five numbers is **how many were left**, never how many were cut: `new` is
+what survived the already-delivered check, `shortlisted` is what survived the cheap screen.
+The report above phrases those two as removals; the row wants the survivors, because only
+survivors chain into the next level.
+
+`run-logger` hands back the row URL and any defect it had to record on your behalf. Put
+those in your report too: a hand-off that broke quietly is worse than one that broke loudly.

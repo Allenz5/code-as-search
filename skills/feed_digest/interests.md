@@ -1,8 +1,8 @@
 # 筛选标准
 
-这份文件是 `/digest` 的地基。它会自我更新——每轮开头，agent 把你在 Notion `Feed Digest`
+这份文件是 `/feed_digest` 的地基。它会自我更新——每轮开头，agent 把你在 Notion `Feed Digest`
 里标过 Rating 的条目消化成新例子追加到下面，标准有系统性偏差时改写描述。改动进 git，
-`git log -p skills/digest/interests.md` 能看到标准怎么漂移的。
+`git log -p skills/feed_digest/interests.md` 能看到标准怎么漂移的。
 
 你随时可以直接改这个文件。手写的和 agent 写的一样有效。
 

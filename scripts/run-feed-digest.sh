@@ -1,5 +1,5 @@
 #!/bin/bash
-# One scheduled /digest run. Invoked by launchd three times a day.
+# One scheduled /feed_digest run. Invoked by launchd three times a day.
 #
 # Two things this has to get right that a bare `claude -p` does not:
 #   - USER and LOGNAME must be set. Without them Claude Code cannot reach its
@@ -12,17 +12,26 @@
 set -uo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-LOG_DIR="$HOME/.local/state/digest"
+LOG_DIR="$HOME/.local/state/feed-digest"
 mkdir -p "$LOG_DIR"
 
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"; }
 
-# No network means no run. Writing an empty digest would read as "nothing good
+# No network means no run. Writing an empty feed digest would read as "nothing good
 # today", which is a different and much worse claim than "I could not look".
 if ! ping -c1 -t3 1.1.1.1 >/dev/null 2>&1; then
   log "no network — skipping this run"
   date +%s > "$LOG_DIR/skipped-at"
   exit 0
+fi
+
+# The LinkedIn server quarantines its own auth state into an invalid-state-* directory
+# when a session goes bad, so the absence of source-state.json is the logged-out signal —
+# confirmed present on a logged-in host 2026-08-26 — and nothing else reports it until a
+# run is already halfway through. Warn, do not refuse: unlike the connection digest, four other feeds
+# are unaffected, and a feed digest missing one platform beats no feed digest at all.
+if [[ ! -f "$HOME/.linkedin-mcp/source-state.json" ]]; then
+  log "LinkedIn is logged out (no source-state.json) — expect zero LinkedIn posts; recover with --login"
 fi
 
 XHS_BIN="$REPO/servers/xiaohongshu/bin/xiaohongshu-mcp"
@@ -58,9 +67,9 @@ else
   fi
 fi
 
-log "starting digest run"
+log "starting feed digest run"
 cd "$REPO" || exit 1
-claude -p "/digest" --permission-mode acceptEdits
+claude -p "/feed_digest" --permission-mode acceptEdits
 STATUS=$?
-log "digest run finished (exit $STATUS)"
+log "feed digest run finished (exit $STATUS)"
 exit $STATUS

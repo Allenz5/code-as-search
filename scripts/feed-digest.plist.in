@@ -2,7 +2,7 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <!--
   This is a template. `make install` renders it to build/; `make schedule` loads it.
-  Fire now: launchctl kickstart -k gui/$(id -u)/com.claude-toolkit.digest
+  Fire now: launchctl kickstart -k gui/$(id -u)/com.claude-toolkit.feed-digest
   Remove:   make unschedule
 
   The repo must not live under ~/Desktop, ~/Documents or ~/Downloads: launchd-spawned
@@ -19,11 +19,11 @@
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>com.claude-toolkit.digest</string>
+    <string>com.claude-toolkit.feed-digest</string>
 
     <key>ProgramArguments</key>
     <array>
-        <string>@@TOOLKIT_ROOT@@/scripts/run-digest.sh</string>
+        <string>@@TOOLKIT_ROOT@@/scripts/run-feed-digest.sh</string>
     </array>
 
     <key>EnvironmentVariables</key>
@@ -57,9 +57,9 @@
     </array>
 
     <key>StandardOutPath</key>
-    <string>@@HOME@@/.local/state/digest/digest.log</string>
+    <string>@@HOME@@/.local/state/feed-digest/feed-digest.log</string>
     <key>StandardErrorPath</key>
-    <string>@@HOME@@/.local/state/digest/digest.err</string>
+    <string>@@HOME@@/.local/state/feed-digest/feed-digest.err</string>
 
     <key>RunAtLoad</key>
     <false/>

@@ -1,15 +1,15 @@
 ---
-name: digest
-description: Pull the recommendation feeds from X, Reddit, Xiaohongshu and LinkedIn, screen them down to what is actually worth reading, verify what the survivors claim, and write the result to the Feed Digest database in Notion. Use when the user says "/digest", or on a scheduled run.
+name: feed_digest
+description: Pull the recommendation feeds from X, Reddit, Xiaohongshu and LinkedIn, screen them down to what is actually worth reading, verify what the survivors claim, and write the result to the Feed Digest database in Notion. Use when the user says "/feed_digest", or on a scheduled run.
 ---
 
-# Digest
+# Feed Digest
 
 You are replacing four scroll sessions with one list. The user does not want to open X,
 Reddit, Xiaohongshu and LinkedIn today; they want the handful of things from those feeds
 that are worth their attention, with a reason attached to each.
 
-The standard is not "is this interesting" — it is `skills/digest/interests.md`, which is
+The standard is not "is this interesting" — it is `skills/feed_digest/interests.md`, which is
 this person's own account of what they care about. Read it first, every run. Judge against
 it, not against your own taste.
 
@@ -20,7 +20,43 @@ just another feed.
 
 ## Start
 
-1. Read `skills/digest/interests.md`.
+**First, `date -Iseconds`.** Hold on to it — `run-logger` needs the run's start time at the
+end, and by then it cannot be recovered.
+
+**Then take the comments off your control page.** [`Digest Controls`](https://app.notion.com/p/3c9ba5489378819199f6c8174886964f) in Notion
+mirrors the documents that govern this run, one child page each:
+
+| document | page id |
+|---|---|
+| `skills/feed_digest/SKILL.md` | `3c9ba548-9378-81d9-b607-cc46844996ab` |
+| `skills/feed_digest/interests.md` | `3c9ba548-9378-81dc-bf04-caa5faa6e2fb` |
+
+Call `notion-get-comments(page_id, include_all_blocks=true)` on each. It returns unresolved
+threads by default, which is what you want. Two things decide whether a thread is live:
+
+- A thread whose newest comment is your own `✅ 已改：…` is consumed — skip it.
+- A thread where the user has replied *under* that ✅ is live again, and what he says there
+  outranks what you decided last time.
+
+For each live thread, work by `/update_skill`: the comment is evidence about the instruction
+that produced the behaviour, so find that instruction and rewrite it. **Do not paste his
+words into the file.** That is the exact failure `/update_skill` exists to prevent, and
+these documents have a 200-line ceiling that appending would spend on one example.
+
+The "one comment changes nothing" rule below does not apply here. That rule is about
+`Comment` on a digest row, which is evidence about a single post. A comment on the control
+page is the user talking about the document itself, at the level the document is written —
+act on it the first time.
+
+**When the comment is a complaint with no wanted behaviour attached**, and you cannot infer
+it from the document, do not guess. Reply `❓ <the question>` and leave the thread live.
+Nobody is awake at 08:07 to answer, and a standard bent the wrong way costs more than a
+run that carried one comment over to tomorrow.
+
+Reply `✅ 已改：<which instruction changed, and what it said before>` on every thread you did
+act on. Then re-read the files you edited — this run is judged by the updated standard.
+
+1. Read `skills/feed_digest/interests.md`.
 2. Fold in feedback: query the Notion database for rows where `Rating` is set or
    `Comment` is non-empty, and `Learned` is unchecked. Check `Learned` on every row you consume, and let real feedback
    displace the seed examples over time.
@@ -89,6 +125,13 @@ level is the one that costs nothing, and anything you never pull cannot be scree
 **Drop what you have already delivered.** Query the database for recent URLs first and
 skip anything already there. This runs three times a day against feeds that turn over
 slowly; without this the same post arrives every morning.
+
+That query can fail rather than return rows — the Notion workspace has a cap on data
+source queries, and past it the call errors out. **A failed dedup query is not an empty
+one.** If it errors, or hands back a number of already-delivered posts far below what the
+last few runs saw, treat the run as deduped against nothing and say so in the report.
+Writing anyway produces re-deliveries that do not even look like duplicates, because each
+one comes back rewritten with a different title and a different score.
 
 **Screen on metadata.** Title, author, engagement, excerpt. This is cheap — no browser —
 so it should be generous. You are only ruling out what is plainly off-topic; anything that
@@ -179,6 +222,21 @@ thing in `interests.md` it hits and what in the post makes it worth opening. "Re
 AI agents" is not a reason. `Verified` gets what you actually established — a specific
 fact, not "could not verify" as a placeholder.
 
+**Every row gets all ten columns**: `Title`, `URL`, `Platform`, `Author`, `Engagement`,
+`Captured`, `Score`, `Summary`, `Why`, `Verified`. `Platform` is one of x, reddit,
+xiaohongshu, linkedin; `Author` is the handle or name the feed gave you; `Engagement` is
+whatever that platform counts, as a number; `Captured` is this run's date.
+
+The middle four go missing silently — nothing errors and the run still reports success —
+and none of them can be recovered afterwards: the URL alone does not carry them, and
+re-reading the post later records today's engagement rather than the number that made it
+worth writing. So check the columns on the first row you write, not on the last.
+
+**When the feed genuinely did not give you one, leave it empty and say so in the report.**
+A LinkedIn share post can carry no identifiable author; a platform can expose no engagement
+count. Empty is a fact about the source; an invented value is a lie that nothing downstream
+can detect.
+
 **When the post has a title, `Title` is that title, translated.** Reddit and Xiaohongshu
 hand you one. Translate it as literally as Chinese will bear — same claim, same emphasis,
 no angle of your own bolted on after a colon. The user has to be able to open the link and
@@ -233,3 +291,42 @@ are the ones worth fixing.
 
 If a platform failed outright — not logged in, server down — say which and keep going with
 the rest. Three feeds and an honest note beats no run at all.
+
+**Refresh the mirror.** If this run changed one of the documents on `Digest Controls` — from
+a comment, or from the ratings loop — republish that child page from the file with
+`notion-update-page` / `replace_content`. Only the files that actually changed: the page is a
+mirror, and nothing else ever writes to it, so a page you skip stays stale until some later
+run touches its file. Do this before dispatching `run-logger`, and say in `NOTABLE` which
+documents you republished and why.
+
+**Then log the run.** Everything above goes to a terminal nobody is watching: the scheduled
+run prints into `~/.local/state/feed-digest/`, which the user does not read and tomorrow's run
+cannot. Dispatch `run-logger` once, at the very end, and the funnel becomes a row in
+`Run Log` instead of a thing you said once.
+
+Dispatch it even when the run went badly — especially then. A run that failed early and
+wrote no row is indistinguishable from a run that never fired.
+
+```
+DIGEST:   Feed Digest
+STARTED:  the timestamp from the top of this run
+FINISHED: `date -Iseconds`, now
+STATUS:   完成 | 部分（一个平台挂了，或读取预算没用完就停了）| 中断（cooldown、被 kill）| 失败
+FUNNEL:   one line per channel — x-following, x-foryou, reddit, xiaohongshu, linkedin,
+          sample — as `<name>  pulled → new → shortlisted → read → written`. All six every
+          run; a channel you never ran is `<name>  —  (why)`, which is not the same claim
+          as zero.
+BUGS:     one line each, `[channel] what broke → what it cost`. `none` when nothing did.
+NOTABLE:  what this run changed and what it wants — the standard you raised and why, what
+          the control sample found and the reasons the screen had given for cutting those
+          posts, the overlap between the two X feeds, anything tomorrow's run should know.
+UNREAD:   what you did not get to. Omit only when STATUS is 完成.
+```
+
+Every one of the five numbers is **how many were left**, never how many were cut: `new` is
+what survived the already-delivered check, `shortlisted` is what survived the cheap screen.
+The report above phrases those two as removals; the row wants the survivors, because only
+survivors chain into the next level.
+
+`run-logger` hands back the row URL and any defect it had to record on your behalf. Put
+those in your report too: a hand-off that broke quietly is worse than one that broke loudly.

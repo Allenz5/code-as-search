@@ -9,6 +9,8 @@
       "Agent(pdf-reader)",
       "Agent(social-explorer)",
       "Agent(profile-screener)",
+      "Agent(run-logger)",
+      "Skill(update_skill)",
 
       "mcp__x__scrape_timeline",
       "mcp__reddit__get_subreddit_hot_posts",
@@ -26,8 +28,8 @@
       "mcp__linkedin__get_sidebar_profiles",
       "mcp__linkedin__get_my_profile",
 
-      "Read(~/.claude/skills/linkedin_scout/**)",
-      "Edit(~/.claude/skills/linkedin_scout/**)",
+      "Read(~/.claude/skills/connection_digest/**)",
+      "Edit(~/.claude/skills/connection_digest/**)",
 
       "mcp__x__get_post",
       "mcp__x__wait",
@@ -35,13 +37,17 @@
       "mcp__xiaohongshu__get_post",
       "mcp__xiaohongshu__wait",
 
-      "Read(~/.claude/skills/digest/**)",
-      "Edit(~/.claude/skills/digest/interests.md)",
+      "Read(~/.claude/skills/feed_digest/**)",
+      "Edit(~/.claude/skills/feed_digest/interests.md)",
 
       "mcp__claude_ai_Notion__notion-fetch",
       "mcp__claude_ai_Notion__notion-query-data-sources",
       "mcp__claude_ai_Notion__notion-create-pages",
-      "mcp__claude_ai_Notion__notion-update-page"
+      "mcp__claude_ai_Notion__notion-update-page",
+      "mcp__claude_ai_Notion__notion-get-comments",
+      "mcp__claude_ai_Notion__notion-create-comment",
+
+      "Bash(date:*)"
     ],
     "deny": [
       "WebFetch",

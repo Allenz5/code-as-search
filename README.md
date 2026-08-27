@@ -90,7 +90,7 @@ paths in generated files, and a re-run of `make install` whenever the repo moves
 buys a boundary the harness enforces instead of one the prompt requests.
 
 One consequence to know about: `.claude/settings.json` is project-scoped, so the `deny` list
-that blocks posting, liking and messaging only applies inside this repo. Running `/digest` from
+that blocks posting, liking and messaging only applies inside this repo. Running `/feed_digest` from
 elsewhere leaves those write tools reachable — copy the deny list into `~/.claude/settings.json`
 to have it everywhere.
 
@@ -113,9 +113,9 @@ bodies is unbounded: the longest measured here was 19,426 characters, and one ca
 tokens. The recommendation feeds go through the same renderers for the same reason — before
 they did, one `list_feeds` call returned 56,831 characters of JSON.
 
-## The digest agent
+## The feed digest agent
 
-`/digest` replaces four scroll sessions with one list. It pulls the recommendation feed from
+`/feed_digest` replaces four scroll sessions with one list. It pulls the recommendation feed from
 each platform, screens it down, and writes what survives to a Notion database with a reason
 attached to every row.
 
@@ -137,8 +137,8 @@ The third level is why LinkedIn is worth having at all: it is a résumé databas
 `get_person_profile` answers "does this person's background support what they are claiming?"
 better than any general search.
 
-`skills/digest/interests.md` is the standard, and it updates itself — rate a row in Notion and
-the next run folds that into the file. `git log -p skills/digest/interests.md` is a record of
+`skills/feed_digest/interests.md` is the standard, and it updates itself — rate a row in Notion and
+the next run folds that into the file. `git log -p skills/feed_digest/interests.md` is a record of
 how the taste drifted.
 
 An empty run is a real outcome. Once the list contains filler it has to be skimmed, and then

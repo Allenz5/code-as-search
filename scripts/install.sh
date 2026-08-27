@@ -81,7 +81,7 @@ claude mcp add --scope user --transport http xiaohongshu http://localhost:18060/
 echo "    websearch research reddit x linkedin xiaohongshu"
 
 echo "==> rendering the launchd plist"
-for job in digest scout; do
+for job in feed-digest connection-digest; do
   sed -e "s|@@TOOLKIT_ROOT@@|$ROOT|g" -e "s|@@HOME@@|$HOME|g" -e "s|@@USER@@|$(id -un)|g" \
     "$ROOT/scripts/$job.plist.in" > "$ROOT/build/com.claude-toolkit.$job.plist"
   echo "    build/com.claude-toolkit.$job.plist  (run 'make schedule' to load it)"
@@ -98,8 +98,8 @@ cat <<EOF
 Installed. Restart Claude Code, then:
 
   /research <question>     long-horizon web research
-  /digest                  screen the four social feeds into Notion
-  /linkedin_scout          find Bay Area AI builders worth reaching out to
+  /feed_digest             screen the four social feeds into Notion
+  /connection_digest       find Bay Area AI builders worth reaching out to
 
 Isolation check — the main loop should NOT see any of these:
   mcp__explorer__scrape, mcp__*__get_post

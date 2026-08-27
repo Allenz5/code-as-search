@@ -46,20 +46,20 @@ install: build
 uninstall: unschedule
 	@./scripts/uninstall.sh
 
-# Run /digest three times a day. Needs `make install` first (it renders the plist),
+# Run /feed_digest three times a day. Needs `make install` first (it renders the plist),
 # and a repo that is NOT under ~/Desktop, ~/Documents or ~/Downloads — launchd is
 # refused entry to those by TCC.
 schedule:
-	@for job in digest scout; do \
+	@for job in feed-digest connection-digest; do \
 	  cp build/com.claude-toolkit.$$job.plist $(HOME)/Library/LaunchAgents/; \
 	  launchctl bootout gui/$(shell id -u)/com.claude-toolkit.$$job 2>/dev/null || true; \
 	  launchctl bootstrap gui/$(shell id -u) $(HOME)/Library/LaunchAgents/com.claude-toolkit.$$job.plist; \
 	  echo "    scheduled com.claude-toolkit.$$job"; \
 	done
-	@echo "Fire one now with: launchctl kickstart -k gui/$(shell id -u)/com.claude-toolkit.digest"
+	@echo "Fire one now with: launchctl kickstart -k gui/$(shell id -u)/com.claude-toolkit.feed-digest"
 
 unschedule:
-	@for job in digest scout; do \
+	@for job in feed-digest connection-digest; do \
 	  launchctl bootout gui/$(shell id -u)/com.claude-toolkit.$$job 2>/dev/null || true; \
 	  rm -f $(HOME)/Library/LaunchAgents/com.claude-toolkit.$$job.plist; \
 	done
