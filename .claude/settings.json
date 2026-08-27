@@ -1,4 +1,7 @@
 {
+  "env": {
+    "MAX_MCP_OUTPUT_TOKENS": "50000"
+  },
   "permissions": {
     "allow": [
       "mcp__websearch",
@@ -10,6 +13,8 @@
       "Agent(social-explorer)",
       "Agent(profile-screener)",
       "Agent(run-logger)",
+      "Agent(criteria-keeper)",
+      "Agent(linkedin-feed-reader)",
       "Skill(update_skill)",
 
       "mcp__x__scrape_timeline",
@@ -38,6 +43,8 @@
       "mcp__xiaohongshu__wait",
 
       "Read(~/.claude/skills/feed_digest/**)",
+      "Read(agents/**)",
+      "Edit(agents/**)",
       "Edit(~/.claude/skills/feed_digest/interests.md)",
 
       "mcp__claude_ai_Notion__notion-fetch",

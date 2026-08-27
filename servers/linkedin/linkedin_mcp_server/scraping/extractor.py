@@ -459,8 +459,8 @@ def _build_feed_references(
         existing.add(relative)
     # Cap kept in sync with _REFERENCE_CAPS["feed"] in link_metadata.py;
     # changing one without the other will drop or duplicate entries
-    # silently. Matches get_feed's num_posts ceiling (Field(ge=1, le=50)).
-    return dedupe_references(refs, cap=50)
+    # silently. Matches get_feed's num_posts ceiling (Field(ge=1, le=100)).
+    return dedupe_references(refs, cap=100)
 
 
 async def _drain_listener_tasks(pending: list[asyncio.Task[None]]) -> None:

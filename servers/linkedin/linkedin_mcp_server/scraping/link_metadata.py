@@ -105,10 +105,13 @@ _REFERENCE_CAPS = {
     "contact_info": 8,
     "inbox": 30,
     "conversation": 12,
-    # Headroom for get_feed's num_posts ceiling (Field(ge=1, le=50)).
-    # Kept in sync with the literal cap=50 in extractor._build_feed_references
-    # where SDUI-derived /posts/<slug> permalinks are appended.
-    "feed": 50,
+    # Headroom for get_feed's num_posts ceiling (Field(ge=1, le=100)).
+    # Kept in sync with the literal cap in extractor._build_feed_references
+    # where SDUI-derived /posts/<slug> permalinks are appended. The two drifted
+    # apart once: the ceiling went to 100 and this stayed at 50, so a feed that
+    # rendered a hundred posts came back with URLs for the first fifty and every
+    # good post below that line had to be dropped for having no checkable link.
+    "feed": 100,
 }
 
 _URL_LIKE_RE = re.compile(r"^(?:https?://|/)\S+$", re.IGNORECASE)

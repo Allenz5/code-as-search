@@ -1,8 +1,8 @@
 # 找什么样的人
 
 这份文件是 `/connection_digest` 的地基。它会自我更新——每轮开头，agent 把你在 Notion
-`Connection Digest` 里标过 👍 和 👎 的人消化成新例子追加到下面，判断有系统性偏差时改写
-描述。`git log -p skills/connection_digest/profile.md` 能看到标准怎么漂移的。
+`Connection Digest` 里标过 👍 和 👎 的人消化成新例子，同时把已经被上面的描述说清楚、
+不再教任何边界的旧例子退掉；两条以上指向同一个原因时才改写描述。`git log -p skills/connection_digest/profile.md` 能看到标准怎么漂移的。
 
 你随时可以直接改这个文件。手写的和 agent 写的一样有效。
 
@@ -73,35 +73,3 @@ Growth、Evangelist、猎头相关（Headhunter、Talent、Recruiting、Staffing
 **"Stealth Startup" 要小心。** 它同时是"早期精英创业"和"没人关注的小 startup"的常见
 写法，光看 headline 分不出来。这种要么靠轴 3 的第二条通路（本人有分量）过，要么就得
 读 profile 才能判。
-
----
-
-## 一度连接校准（冷启动用，用完即删）
-
-**这一节是临时的。** 它由一次 `search_people(network=["F"], geo_urn="90000084")` 的
-观察产生，记录你已经连上的湾区技术人身上反复出现的特征，用来给第一批 query 提供原料。
-
-它有两个已知缺陷，所以权重必须低于真实反馈：
-
-1. **一度连接是历史，不是目标。** 你连过的人反映的是过去的路径（同事、同学、谁加了你），
-   不等于你现在想 reach out 的人。
-2. **存活者偏差。** 你连上的人里没有"你想连但没连上的人"，而后者恰恰是这个 skill 的目标。
-
-**删除条件**：当 `Connection Digest` 里 👍 的人数超过这次校准的样本数时，**把这一整节
-删掉**。到那时真实反馈已经比它更有信息量，留着只会往回拉。
-
-**样本数：12。** 2026-08-24 用 `AI engineer` 和 `founder` 两个广词跑
-`network=["F"], geo_urn="90000084"`，两次返回几乎同一批人，第二页直接空 —— 湾区一度
-连接的技术人总共就这么多。**样本这么小，这一节的权重应该非常低**，攒到 13 个 👍 就删。
-
-观察到的模式（是假设，不是标准）：
-
-- **公司都很小、很早期**：Astrocade、Anuttacon、Tripo AI、Entropia、Hopscotch Health。
-  大公司只出现 ByteDance 和 Notion，且都是"Past:"或纯工程岗。
-- **学历/加速器信号密集**：Stanford PhD、Stanford CS Dropout、Tsinghua Yao Class、
-  A16Z Speedrun（SR003、SR Scout）、StartX。这类标记在这批人里几乎人手一个。
-- **一个意外的聚类：AI × 游戏/3D。** VIDEOGAME.ai、Tripo AI（GenAI for 3D）、
-  Astrocade、Anuttacon（Voice Agent）。这个方向在原始画像里完全没提到，可能只是社交
-  路径的产物，也可能是真实兴趣 —— **留给评分去裁决，不要现在就写进 query 池。**
-- **样本里混着明确不合格的人**：一个 VC partner、一个 VP Strategy and Partnerships。
-  这正是存活者偏差的直接证据 —— 一度连接是按各种理由连上的，不是按这份画像连上的。

@@ -17,7 +17,9 @@ rather than pile on. You will sometimes wait. That is the system working.
 
 ## The standard
 
-The caller gives you four axes and the person's search-result line. All four must hold:
+The caller gives you `skills/connection_digest/profile.md` in full and the person's
+search-result line. Judge against the file — the examples in it are the boundary calls. Its
+four axes all have to hold:
 
 1. **Technical** — they build. Not managing it, not talking about it.
 2. **AI product** — the AI is the product, not incidental to the employer.

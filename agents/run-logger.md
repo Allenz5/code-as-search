@@ -105,7 +105,18 @@ to would just add a second unverified number.
 
 ## Write
 
-One row, properties only, no page body. `Comment` is the user's column — leave it empty.
+One row, properties only, no page body — and exactly one write call. Never send a
+throwaway create to find out what the schema will accept: the row you are probing with is
+a real row, it lands in the database, and nothing here can delete it, so the user has to
+clear it by hand. The schema is the eight columns below plus `Comment`; if a value is
+rejected, fix that value in the one row you write rather than testing it in another.
+
+Set every column, not only the computed ones. `Digest` and `Status` are the caller's two
+words copied straight through, and they are the columns the database is filtered and read
+by — a row with an empty `Status` cannot say whether the run finished, which is the first
+thing anyone asks of it. If `STATUS` is missing or is not one of the four values, write the
+row with `Status` empty and record `[run-logger] STATUS 缺失或不是四个值之一，这一格是空的`.
+`Comment` is the user's column — leave it empty.
 
 `Funnel`, `Bugs`, `Notable` and `Unread` are newline-separated text, copied through
 essentially as sent. Do not summarise them and do not improve the prose: `Notable` is

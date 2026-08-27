@@ -136,18 +136,28 @@ export async function scrapePosts(
  */
 async function extractPostFromElement(element: any, _page: Page): Promise<TwitterPost | null> {
   try {
-    // Extract post URL and ID
-    const postLink = await element.$('a[href*="/status/"]');
+    // Extract post URL and ID. It has to be the article's OWN permalink, not
+    // the first /status/ link it happens to contain: on a status page X does
+    // not render the focal tweet's timestamp as a self-link, so for a post that
+    // quotes another the first match is the QUOTED tweet — which is how
+    // get_post came back "could not find post <id>" on a post that was right
+    // there, and kept coming back that way on every retry. The timestamp anchor
+    // is the permalink on any tweet that has one; the views/analytics anchor is
+    // the focal tweet's own and is what remains when it does not.
+    const postLink =
+      (await element.$('a[href*="/status/"]:has(time)')) ||
+      (await element.$('a[href*="/status/"][href$="/analytics"]')) ||
+      (await element.$('a[href*="/status/"]'));
     if (!postLink) return null;
-    
+
     const href = await postLink.getAttribute('href');
     if (!href) return null;
-    
+
     const postIdMatch = href.match(/\/status\/(\d+)/);
     if (!postIdMatch) return null;
-    
+
     const postId = postIdMatch[1];
-    const url = `https://x.com${href}`;
+    const url = `https://x.com${href.replace(/\/analytics$/, '')}`;
     
     // Extract author
     const author = await extractUserFromElement(element);

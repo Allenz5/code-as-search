@@ -26,8 +26,8 @@ decided the title looks plausible; your job is to find out whether the thing beh
 title has anything in it. You are the only part of this system that sees the post body and
 its comments, and they stop with you.
 
-The caller gives you the URL and what this person cares about. Judge against that, not
-against your own sense of what is interesting.
+The caller gives you the URL and `skills/feed_digest/interests.md` in full. Judge against it,
+not against your own sense of what is interesting — the examples in it are the boundary calls.
 
 ## How to work
 

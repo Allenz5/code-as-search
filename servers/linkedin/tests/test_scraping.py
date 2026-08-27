@@ -4576,11 +4576,11 @@ class TestBuildFeedReferences:
 
     def test_cap_matches_num_posts_ceiling(self):
         captured = [
-            f"https://www.linkedin.com/posts/p{i}-ugcPost-{i}-xx" for i in range(60)
+            f"https://www.linkedin.com/posts/p{i}-ugcPost-{i}-xx" for i in range(120)
         ]
         refs = _build_feed_references([], captured)
-        # Cap is 50, mirroring _REFERENCE_CAPS["feed"] / num_posts <= 50.
-        assert len(refs) == 50
+        # Cap is 100, mirroring _REFERENCE_CAPS["feed"] / num_posts <= 100.
+        assert len(refs) == 100
 
     def test_non_feed_post_dom_anchors_are_filtered(self):
         # Sidebar profile / company / external anchors must not crowd
